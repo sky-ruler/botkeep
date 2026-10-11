@@ -8,10 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"botkeep/internal/models"
+	"botkeep/internal/monitor"
 )
 
 func setupTestServer(t *testing.T) (*chi.Mux, func()) {
@@ -27,7 +29,8 @@ func setupTestServer(t *testing.T) (*chi.Mux, func()) {
 		t.Fatalf("Failed to initialize test DB: %v", err)
 	}
 
-	h := NewHandler(db)
+	mon := monitor.NewEngine(db, time.Minute)
+	h := NewHandler(db, mon)
 	r := chi.NewRouter()
 
 	r.Get("/", h.Dashboard)
@@ -40,6 +43,7 @@ func setupTestServer(t *testing.T) (*chi.Mux, func()) {
 	r.Post("/servers/{id}/start", h.StartServer)
 	r.Post("/servers/{id}/stop", h.StopServer)
 	r.Post("/servers/{id}/restart", h.RestartServer)
+	r.Post("/servers/{id}/ping", h.PingServer)
 	r.Post("/servers/seed", h.SeedFleet)
 	r.Get("/metrics", h.GetMetrics)
 	r.Get("/logs", h.GetLogs)
@@ -74,7 +78,7 @@ func TestServerActionsHTMX(t *testing.T) {
 	defer cleanup()
 
 	// Stop action
-	req := httptest.NewRequest("POST", "/servers/srv-ingress-01/stop", nil)
+	req := httptest.NewRequest("POST", "/servers/srv-us-101/stop", nil)
 	req.Header.Set("HX-Request", "true")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -82,12 +86,12 @@ func TestServerActionsHTMX(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
-	if !strings.Contains(w.Body.String(), "server-row-srv-ingress-01") {
+	if !strings.Contains(w.Body.String(), "server-row-srv-us-101") {
 		t.Errorf("Expected response to contain updated server row")
 	}
 
 	// Start action
-	req = httptest.NewRequest("POST", "/servers/srv-ingress-01/start", nil)
+	req = httptest.NewRequest("POST", "/servers/srv-us-101/start", nil)
 	req.Header.Set("HX-Request", "true")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -140,5 +144,22 @@ func TestSimulateErrorToast(t *testing.T) {
 
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+}
+
+func TestPingServerHTMX(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	req := httptest.NewRequest("POST", "/servers/srv-us-101/ping", nil)
+	req.Header.Set("HX-Request", "true")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "server-row-srv-us-101") {
+		t.Errorf("Expected response to contain updated server row")
 	}
 }

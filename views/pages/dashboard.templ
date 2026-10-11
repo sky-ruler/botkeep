@@ -131,14 +131,27 @@ templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []
 					hx-swap="innerHTML"
 					hx-indicator="#deploy-indicator"
 					hx-on::after-request="if(event.detail.successful) this.reset()"
-					class="flex items-center gap-2"
+					class="flex flex-wrap items-center gap-2"
 				>
 					<input
 						type="text"
 						name="name"
-						placeholder="Node name (e.g. redis-node-02)"
+						placeholder="Node / Service name"
 						required
-						class="w-48 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans"
+						class="w-36 sm:w-44 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans"
+					/>
+					<select
+						name="driver"
+						class="px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
+					>
+						<option value="demo">Driver: Simulated</option>
+						<option value="http">Driver: HTTP Probe</option>
+					</select>
+					<input
+						type="text"
+						name="endpoint_url"
+						placeholder="Target URL (e.g. https://api.github.com)"
+						class="w-48 sm:w-56 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans font-mono"
 					/>
 					<select
 						name="region"
@@ -283,12 +296,12 @@ templ ServerTable(servers []models.Server) {
 			<table class="min-w-full divide-y divide-zinc-800 text-left text-xs">
 				<thead>
 					<tr class="bg-zinc-900/80 text-zinc-400 font-medium">
-						<th scope="col" class="py-3 pl-4 pr-3">Node / Instance</th>
+						<th scope="col" class="py-3 pl-4 pr-3">Node / Target</th>
+						<th scope="col" class="px-3 py-3">Driver</th>
 						<th scope="col" class="px-3 py-3">Status</th>
-						<th scope="col" class="px-3 py-3">Network / Region</th>
-						<th scope="col" class="px-3 py-3">CPU</th>
-						<th scope="col" class="px-3 py-3">RAM</th>
-						<th scope="col" class="px-3 py-3">Uptime</th>
+						<th scope="col" class="px-3 py-3">Latency & SLA</th>
+						<th scope="col" class="px-3 py-3">Resources</th>
+						<th scope="col" class="px-3 py-3">Region & Age</th>
 						<th scope="col" class="py-3 pl-3 pr-4 text-right">Actions</th>
 					</tr>
 				</thead>
@@ -308,7 +321,11 @@ templ ServerRow(s models.Server) {
 		<td class="py-3.5 pl-4 pr-3 font-sans">
 			<div class="flex items-center gap-3">
 				<div class="w-8 h-8 rounded-lg bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-300 group-hover:border-zinc-500 transition-colors">
-					@components.IconServer("w-4 h-4")
+					if s.Driver == "http" {
+						@components.IconGlobe("w-4 h-4 text-cyan-400")
+					} else {
+						@components.IconServer("w-4 h-4")
+					}
 				</div>
 				<div>
 					<button
@@ -324,9 +341,20 @@ templ ServerRow(s models.Server) {
 							@components.IconSpinner("w-3.5 h-3.5 text-zinc-400")
 						</span>
 					</button>
-					<div class="text-[11px] text-zinc-500 font-mono">{ s.ID }</div>
+					<div class="flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
+						<span>{ s.ID }</span>
+						if s.Driver == "http" && s.EndpointURL != "" {
+							<span class="text-zinc-600">•</span>
+							<span class="text-cyan-400/80 truncate max-w-[150px] sm:max-w-[200px]" title={ s.EndpointURL }>{ s.EndpointURL }</span>
+						}
+					</div>
 				</div>
 			</div>
+		</td>
+
+		<!-- Driver Type Badge -->
+		<td class="px-3 py-3.5 font-sans">
+			@components.DriverBadge(s.Driver)
 		</td>
 
 		<!-- Status Badge -->
@@ -334,54 +362,95 @@ templ ServerRow(s models.Server) {
 			@components.ServerStatusBadge(s.Status)
 		</td>
 
-		<!-- Network / Region -->
-		<td class="px-3 py-3.5">
-			<div class="text-zinc-200">{ s.IPAddress }</div>
-			<div class="text-[11px] text-zinc-500 font-sans">{ s.Region }</div>
+		<!-- Latency & SLA Sparkline -->
+		<td class="px-3 py-3.5 font-sans">
+			<div class="space-y-1">
+				<div class="flex items-center gap-1.5 font-mono">
+					if s.Status == "stopped" {
+						<span class="text-zinc-600 text-xs">—</span>
+					} else {
+						<span class="text-xs text-zinc-200">{ fmt.Sprintf("%.1fms", s.LatencyMS) }</span>
+						<span class={ "text-[10px] px-1 py-0.2 rounded ",
+							templ.KV("text-emerald-400 bg-emerald-500/10", s.UptimePct >= 99.0),
+							templ.KV("text-amber-400 bg-amber-500/10", s.UptimePct >= 90.0 && s.UptimePct < 99.0),
+							templ.KV("text-rose-400 bg-rose-500/10", s.UptimePct < 90.0),
+						}>
+							{ fmt.Sprintf("%.1f%%", s.UptimePct) }
+						</span>
+					}
+				</div>
+				<!-- Spark dots -->
+				if len(s.ProbePoints) > 0 {
+					<div class="flex items-center gap-1" title="Recent health check results">
+						for _, pt := range s.ProbePoints {
+							if pt.Success {
+								<span class="w-1.5 h-1.5 rounded-full bg-emerald-400/80" title={ fmt.Sprintf("%.1fms", pt.LatencyMS) }></span>
+							} else {
+								<span class="w-1.5 h-1.5 rounded-full bg-rose-500" title={ fmt.Sprintf("Error HTTP %d", pt.StatusCode) }></span>
+							}
+						}
+					</div>
+				}
+			</div>
 		</td>
 
-		<!-- CPU Metric -->
-		<td class="px-3 py-3.5">
+		<!-- Resources (CPU / RAM) -->
+		<td class="px-3 py-3.5 font-sans">
 			if s.Status == "stopped" {
-				<span class="text-zinc-600">0.0%</span>
+				<span class="text-zinc-600 font-mono text-xs">Offline</span>
 			} else {
-				<div class="flex items-center gap-2">
-					<div class="w-12 bg-zinc-800 rounded-full h-1 overflow-hidden">
-						<div class="bg-zinc-300 h-1 rounded-full" style={ fmt.Sprintf("width: %d%%", int(s.CPUUsage)) }></div>
+				<div class="space-y-1">
+					<div class="flex items-center gap-1.5 text-[11px] font-mono">
+						<span class="text-zinc-500 w-7">CPU</span>
+						<div class="w-12 bg-zinc-800 rounded-full h-1 overflow-hidden">
+							<div class="bg-zinc-300 h-1 rounded-full" style={ fmt.Sprintf("width: %d%%", int(s.CPUUsage)) }></div>
+						</div>
+						<span class="text-zinc-300">{ fmt.Sprintf("%.0f%%", s.CPUUsage) }</span>
 					</div>
-					<span class="text-zinc-300">{ fmt.Sprintf("%.1f%%", s.CPUUsage) }</span>
+					<div class="flex items-center gap-1.5 text-[11px] font-mono">
+						<span class="text-zinc-500 w-7">RAM</span>
+						<div class="w-12 bg-zinc-800 rounded-full h-1 overflow-hidden">
+							<div class="bg-zinc-400 h-1 rounded-full" style={ fmt.Sprintf("width: %d%%", int(s.MemoryUsage)) }></div>
+						</div>
+						<span class="text-zinc-300">{ fmt.Sprintf("%.0f%%", s.MemoryUsage) }</span>
+					</div>
 				</div>
 			}
 		</td>
 
-		<!-- RAM Metric -->
-		<td class="px-3 py-3.5">
-			if s.Status == "stopped" {
-				<span class="text-zinc-600">0.0%</span>
-			} else {
-				<div class="flex items-center gap-2">
-					<div class="w-12 bg-zinc-800 rounded-full h-1 overflow-hidden">
-						<div class="bg-zinc-400 h-1 rounded-full" style={ fmt.Sprintf("width: %d%%", int(s.MemoryUsage)) }></div>
-					</div>
-					<span class="text-zinc-300">{ fmt.Sprintf("%.1f%%", s.MemoryUsage) }</span>
-				</div>
-			}
-		</td>
-
-		<!-- Uptime -->
-		<td class="px-3 py-3.5 text-zinc-400 text-[11px]">
-			{ s.Uptime }
+		<!-- Region / Uptime -->
+		<td class="px-3 py-3.5 text-[11px]">
+			<div class="text-zinc-300 font-mono">{ s.Region }</div>
+			<div class="text-zinc-500">{ s.Uptime }</div>
 		</td>
 
 		<!-- Action Triggers -->
 		<td class="py-3.5 pl-3 pr-4 text-right font-sans">
 			<div class="inline-flex items-center gap-1.5">
+				<!-- Ping Now button -->
+				<button
+					type="button"
+					hx-post={ "/servers/" + s.ID + "/ping" }
+					hx-target={ "#server-row-" + s.ID }
+					hx-swap="outerHTML"
+					hx-indicator={ "#ping-spin-" + s.ID }
+					class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+					title="Trigger live probe check"
+				>
+					<span id={ "ping-spin-" + s.ID } class="htmx-indicator">
+						@components.IconSpinner("w-3 h-3 text-cyan-400")
+					</span>
+					@components.IconActivity("w-3 h-3 text-cyan-400")
+					<span>Ping</span>
+				</button>
+
 				if s.Status == "stopped" {
 					@components.ActionButton("start", s.ID, false)
 				} else {
 					@components.ActionButton("stop", s.ID, false)
 					@components.ActionButton("restart", s.ID, false)
 				}
+
 				<!-- Inspect Drawer Trigger -->
 				<button
 					type="button"

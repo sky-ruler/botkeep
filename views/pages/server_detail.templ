@@ -74,29 +74,43 @@ templ ServerDetailDrawer(s models.Server, logs []models.LogEntry) {
 				</div>
 
 				<!-- Telemetry Gauges -->
-				<div class="grid grid-cols-3 gap-3">
-					<div class="p-3.5 rounded-lg bg-zinc-950/40 border border-zinc-800">
-						<span class="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">CPU Load</span>
-						<p class="text-lg font-semibold text-zinc-100 font-mono mt-1">{ fmt.Sprintf("%.1f%%", s.CPUUsage) }</p>
+				<div class="grid grid-cols-4 gap-2.5">
+					<div class="p-3 rounded-lg bg-zinc-950/40 border border-zinc-800">
+						<span class="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">Latency</span>
+						<p class="text-base font-semibold text-cyan-400 font-mono mt-1">{ fmt.Sprintf("%.1fms", s.LatencyMS) }</p>
 					</div>
-					<div class="p-3.5 rounded-lg bg-zinc-950/40 border border-zinc-800">
-						<span class="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">Memory</span>
-						<p class="text-lg font-semibold text-zinc-100 font-mono mt-1">{ fmt.Sprintf("%.1f%%", s.MemoryUsage) }</p>
+					<div class="p-3 rounded-lg bg-zinc-950/40 border border-zinc-800">
+						<span class="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">SLA</span>
+						<p class="text-base font-semibold text-emerald-400 font-mono mt-1">{ fmt.Sprintf("%.1f%%", s.UptimePct) }</p>
 					</div>
-					<div class="p-3.5 rounded-lg bg-zinc-950/40 border border-zinc-800">
-						<span class="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">NVMe Disk</span>
-						<p class="text-lg font-semibold text-zinc-100 font-mono mt-1">{ fmt.Sprintf("%.1f%%", s.StorageUsage) }</p>
+					<div class="p-3 rounded-lg bg-zinc-950/40 border border-zinc-800">
+						<span class="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">CPU</span>
+						<p class="text-base font-semibold text-zinc-100 font-mono mt-1">{ fmt.Sprintf("%.1f%%", s.CPUUsage) }</p>
+					</div>
+					<div class="p-3 rounded-lg bg-zinc-950/40 border border-zinc-800">
+						<span class="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">RAM</span>
+						<p class="text-base font-semibold text-zinc-100 font-mono mt-1">{ fmt.Sprintf("%.1f%%", s.MemoryUsage) }</p>
 					</div>
 				</div>
 
 				<!-- Node Metadata -->
 				<div class="rounded-lg bg-zinc-950/40 border border-zinc-800 p-4 space-y-2.5 text-xs">
 					<div class="flex justify-between py-1 border-b border-zinc-800/60">
+						<span class="text-zinc-500">Driver Type</span>
+						<div>@components.DriverBadge(s.Driver)</div>
+					</div>
+					if s.Driver == "http" && s.EndpointURL != "" {
+						<div class="flex justify-between py-1 border-b border-zinc-800/60">
+							<span class="text-zinc-500">Endpoint URL</span>
+							<a href={ templ.SafeURL(s.EndpointURL) } target="_blank" rel="noopener noreferrer" class="font-mono text-cyan-400 hover:underline truncate max-w-[240px]">{ s.EndpointURL }</a>
+						</div>
+					}
+					<div class="flex justify-between py-1 border-b border-zinc-800/60">
 						<span class="text-zinc-500">Node Identifier</span>
 						<span class="font-mono text-zinc-300">{ s.ID }</span>
 					</div>
 					<div class="flex justify-between py-1 border-b border-zinc-800/60">
-						<span class="text-zinc-500">Private IPv4</span>
+						<span class="text-zinc-500">Network Host</span>
 						<span class="font-mono text-zinc-300">{ s.IPAddress }</span>
 					</div>
 					<div class="flex justify-between py-1 border-b border-zinc-800/60">
@@ -112,6 +126,30 @@ templ ServerDetailDrawer(s models.Server, logs []models.LogEntry) {
 						<span class="text-zinc-400">{ s.CreatedAt.Format("2006-01-02 15:04:05 UTC") }</span>
 					</div>
 				</div>
+
+				<!-- Probe Health History (if available) -->
+				if len(s.ProbePoints) > 0 {
+					<div class="space-y-2">
+						<h4 class="text-xs font-semibold text-zinc-300">Recent Probe History</h4>
+						<div class="p-3 rounded-lg bg-zinc-950 border border-zinc-800 font-mono text-[11px] space-y-1.5 max-h-36 overflow-y-auto">
+							for _, pt := range s.ProbePoints {
+								<div class="flex items-center justify-between py-0.5 border-b border-zinc-900 last:border-0">
+									<div class="flex items-center gap-2">
+										if pt.Success {
+											<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+											<span class="text-emerald-400">HTTP { fmt.Sprint(pt.StatusCode) }</span>
+										} else {
+											<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+											<span class="text-rose-400">ERR ({ fmt.Sprint(pt.StatusCode) })</span>
+										}
+										<span class="text-zinc-500 text-[10px]">{ pt.CreatedAt.Format("15:04:05") }</span>
+									</div>
+									<span class="text-zinc-300">{ fmt.Sprintf("%.1fms", pt.LatencyMS) }</span>
+								</div>
+							}
+						</div>
+					</div>
+				}
 
 				<!-- Node-Specific Audit Logs -->
 				<div class="space-y-2">

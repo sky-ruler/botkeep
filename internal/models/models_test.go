@@ -55,7 +55,7 @@ func TestCreateAndSearchServer(t *testing.T) {
 	defer cleanup()
 
 	// Provision new node
-	created, err := db.CreateServer("payment-processor-01", "eu-central-1")
+	created, err := db.CreateServer("payment-processor-01", "eu-central-1", "demo", "")
 	if err != nil {
 		t.Fatalf("CreateServer failed: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestDeleteServer(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	created, err := db.CreateServer("ephemeral-canary", "us-east-1")
+	created, err := db.CreateServer("ephemeral-canary", "us-east-1", "http", "https://example.com/health")
 	if err != nil {
 		t.Fatalf("CreateServer failed: %v", err)
 	}
@@ -140,6 +140,36 @@ func TestDeleteServer(t *testing.T) {
 		t.Errorf("Expected error fetching deleted server, got nil")
 	}
 }
+
+func TestRecordProbe(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	s, err := db.CreateServer("api-gateway", "us-east-1", "http", "https://example.com")
+	if err != nil {
+		t.Fatalf("CreateServer failed: %v", err)
+	}
+
+	err = db.RecordProbe(s.ID, 18.5, 200, true, "")
+	if err != nil {
+		t.Fatalf("RecordProbe failed: %v", err)
+	}
+
+	updated, err := db.GetServerByID(s.ID)
+	if err != nil {
+		t.Fatalf("GetServerByID failed: %v", err)
+	}
+	if updated.LatencyMS != 18.5 {
+		t.Errorf("Expected LatencyMS 18.5, got %f", updated.LatencyMS)
+	}
+	if updated.UptimePct != 100.0 {
+		t.Errorf("Expected UptimePct 100.0, got %f", updated.UptimePct)
+	}
+	if len(updated.ProbePoints) == 0 {
+		t.Errorf("Expected probe history points, got 0")
+	}
+}
+
 
 func TestGetHostMetrics(t *testing.T) {
 	metrics := GetHostMetrics()

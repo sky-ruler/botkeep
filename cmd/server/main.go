@@ -19,6 +19,7 @@ import (
 	"botkeep"
 	"botkeep/internal/handlers"
 	"botkeep/internal/models"
+	"botkeep/internal/monitor"
 )
 
 var (
@@ -29,6 +30,7 @@ var (
 func main() {
 	flagPort := flag.String("port", "", "Server HTTP listening port (default: 8080 or $PORT)")
 	flagDB := flag.String("db", "", "SQLite database filepath (default: botkeep.db or $DB_PATH)")
+	flagInterval := flag.Duration("interval", 15*time.Second, "Health probe interval (default: 15s)")
 	flagVersion := flag.Bool("version", false, "Print BotKeep version information and exit")
 	flagSeed := flag.Bool("seed", false, "Force re-seed demo server fleet on startup")
 	flag.Parse()
@@ -97,8 +99,14 @@ func main() {
 		http.StripPrefix("/static/", fileServer).ServeHTTP(w, r)
 	})
 
+	// Start Background Fleet & Endpoint Health Prober
+	mon := monitor.NewEngine(db, *flagInterval)
+	monCtx, cancelMon := context.WithCancel(context.Background())
+	defer cancelMon()
+	go mon.Start(monCtx)
+
 	// Handlers
-	h := handlers.NewHandler(db)
+	h := handlers.NewHandler(db, mon)
 
 	// Application routes
 	r.Get("/", h.Dashboard)
@@ -112,6 +120,7 @@ func main() {
 	r.Post("/servers/{id}/start", h.StartServer)
 	r.Post("/servers/{id}/stop", h.StopServer)
 	r.Post("/servers/{id}/restart", h.RestartServer)
+	r.Post("/servers/{id}/ping", h.PingServer)
 	r.Post("/servers/seed", h.SeedFleet)
 	r.Get("/metrics", h.GetMetrics)
 	r.Get("/logs", h.GetLogs)

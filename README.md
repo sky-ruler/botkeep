@@ -76,18 +76,20 @@ BotKeep bypasses the SPA paradigm using **HTMX** and **a-h/templ**. All static a
 ```mermaid
 flowchart TD
     subgraph Browser[Client Browser]
-        A[HTML DOM Shell] -->|HTMX Triggers| B(Chi HTTP Router)
-        L[Live Logs Panel] <-->|Polls Every 4s| B
-        M[Cluster Metrics] <-->|Polls Every 5s| B
+        A[HTML DOM Shell] -->|HTMX Partial Swaps| B(Chi HTTP Router)
+        L[Live Logs Terminal] <-->|Polls Every 4s| B
+        M[Cluster Metrics Grid] <-->|Polls Every 5s| B
         E[Error Toast Listener] <--|HTMX Error Events| B
     end
 
     subgraph Binary[BotKeep Single Executable]
         B --> C[HTTP Handlers]
+        B --> MON[Background Health Prober Engine]
         C --> D[templ Views Engine]
         C --> S[(Embedded SQLite WAL)]
+        MON -->|Concurrent HTTP/TCP Probing| S
         D -->|Type-Safe HTML Partials| B
-        FS[Embedded Static Assets] -->|Serves Static Files| B
+        FS[Embedded Static Assets] -->|Zero External Static Deps| B
     end
 ```
 
@@ -95,12 +97,15 @@ flowchart TD
 
 ## ✨ Key Features
 
-- **⚡ Instant Single-Binary Launch**: Zero external database setup or npm runtime required at deployment time.
-- **🔄 Localized HTMX Swaps**: Triggering **Start**, **Stop**, or **Restart** updates *only* that specific table row with targeted spinners (`hx-indicator`) and disables the clicked button (`hx-disabled-elt`) to prevent double-clicks.
-- **🔍 Instant Fleet Search & Multi-Filter**: Search nodes by name, ID, or IP in real time with debounced HTMX requests (`delay:250ms`), filtered by status and availability zone.
-- **🛡️ Non-Intrusive Error Toasts**: Network hiccups or 500 exceptions trigger toast notifications through client-side HTMX event listeners rather than breaking the DOM swap.
-- **📂 Node Telemetry Inspector Drawer**: Click on any node to slide open a dedicated telemetry panel showing CPU/RAM gauges, uptime, and node-specific audit event logs.
-- **📈 Real Go Host Telemetry**: Displays live Go runtime metrics including goroutine count, allocated heap memory, garbage collection passes, OS architecture, and thread allocations.
+- **⚡ Instant Single-Binary Launch**: Zero external database setup, Node.js runtime, or Docker requirements to run. Single ~12 MB self-contained binary.
+- **📡 Active HTTP & API Health Probing**: Pluggable driver engine (`http`, `system`, `demo`) that continuously probes endpoints in the background, measuring sub-millisecond precision latency and HTTP status codes.
+- **📊 Rolling Uptime SLA Tracking**: Real-time SLA % calculation with visual spark dots and history inspection for auditing incident response.
+- **⚡ Instant On-Demand "Ping Now" Checks**: Click the **Ping** action on any node to fire an instant HTTP probe and update row telemetry via targeted HTMX swaps.
+- **🔄 Localized HTMX Swaps**: Triggering **Start**, **Stop**, or **Restart** updates *only* that specific table row with targeted spinners (`hx-indicator`) and disables clicked elements (`hx-disabled-elt`) to prevent double-clicks.
+- **🔍 Instant Fleet Search & Multi-Filter**: Search nodes by name, ID, IP, or endpoint URL in real time with debounced HTMX requests (`delay:250ms`), filtered by status and availability zone.
+- **📂 Deep Node Telemetry Drawer**: Click on any node to slide open a dedicated telemetry panel showing CPU, RAM, Latency, and SLA gauges, probe history log, and node audit trails.
+- **🛡️ Non-Intrusive Error Toasts**: Network hiccups or 500 exceptions trigger toast notifications through client-side HTMX event listeners without corrupting the DOM.
+- **📈 Real Go Host Telemetry**: Live Go runtime metrics including goroutine count, allocated heap memory, garbage collection passes, OS architecture, and thread allocations.
 - **🪹 Polished Empty State**: Empty database instances render an illustrative empty state with 1-click **Deploy Demo Fleet** action.
 
 ---
@@ -108,7 +113,7 @@ flowchart TD
 ## 🚀 Quickstart
 
 ### Option 1: Run the Precompiled Binary
-Download the prebuilt single binary for your operating system from Releases:
+Download the prebuilt single binary for your operating system from GitHub Releases:
 ```bash
 # Run locally
 ./botkeep
@@ -150,13 +155,15 @@ BotKeep is configured via command-line flags or environment variables:
 | :--- | :--- | :--- | :--- |
 | `-port` | `PORT` | `8080` | HTTP listening port |
 | `-db` | `DB_PATH` | `botkeep.db` | SQLite database file location |
+| `-interval` | `PROBE_INTERVAL` | `15s` | Fleet health check probe sweep interval |
 | `-seed` | `SEED_FLEET` | `false` | Force re-seed default demo servers on startup |
 | `-version`| — | — | Print version and runtime details and exit |
 
 Example:
 ```bash
-./botkeep -port 3000 -db /var/data/fleet.db
+./botkeep -port 3000 -db /var/data/fleet.db -interval 10s
 ```
+
 
 ---
 
@@ -184,10 +191,13 @@ BotKeep/
 │   ├── handlers/                 # HTTP handlers returning compiled templ components
 │   │   ├── handlers.go
 │   │   └── handlers_test.go      # HTTP router & HTMX integration tests
-│   └── models/                   # SQLite schema, queries, metrics & state transitions
-│       ├── schema.sql            # Embedded SQLite schema
-│       ├── models.go
-│       └── models_test.go        # Database unit test suite
+│   ├── models/                   # SQLite schema, queries, metrics & state transitions
+│   │   ├── schema.sql            # Embedded SQLite schema
+│   │   ├── models.go
+│   │   └── models_test.go        # Database unit test suite
+│   └── monitor/                  # Concurrent health prober engine & SLA tracking
+│       ├── monitor.go
+│       └── monitor_test.go       # Mock HTTP & driver prober test suite
 ├── views/
 │   ├── components/               # Atomic templ components
 │   │   ├── badge.templ           # Status badges (Active, Stopped, Deploying)

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -8,15 +9,20 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"botkeep/internal/models"
+	"botkeep/internal/monitor"
 	"botkeep/views/pages"
 )
 
 type Handler struct {
-	db *models.DB
+	db      *models.DB
+	monitor *monitor.Engine
 }
 
-func NewHandler(db *models.DB) *Handler {
-	return &Handler{db: db}
+func NewHandler(db *models.DB, mon *monitor.Engine) *Handler {
+	return &Handler{
+		db:      db,
+		monitor: mon,
+	}
 }
 
 // Dashboard renders the primary view with fleet metrics, server table, and live logs.
@@ -188,6 +194,8 @@ func (h *Handler) CreateServer(w http.ResponseWriter, r *http.Request) {
 
 	name := strings.TrimSpace(r.FormValue("name"))
 	region := strings.TrimSpace(r.FormValue("region"))
+	driver := strings.TrimSpace(r.FormValue("driver"))
+	endpointURL := strings.TrimSpace(r.FormValue("endpoint_url"))
 
 	if name == "" {
 		http.Error(w, "Validation failed: Node name is required.", http.StatusBadRequest)
@@ -200,11 +208,25 @@ func (h *Handler) CreateServer(w http.ResponseWriter, r *http.Request) {
 	if region == "" {
 		region = "us-east-1"
 	}
+	if driver == "" {
+		if endpointURL != "" {
+			driver = "http"
+		} else {
+			driver = "demo"
+		}
+	}
 
-	_, err := h.db.CreateServer(name, region)
+	newSrv, err := h.db.CreateServer(name, region, driver, endpointURL)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to provision node: %v", err), http.StatusInternalServerError)
 		return
+	}
+
+	// Trigger immediate health probe if HTTP driver
+	if newSrv != nil && newSrv.Driver == "http" && h.monitor != nil {
+		go func(id string) {
+			_, _ = h.monitor.ProbeNow(context.Background(), id)
+		}(newSrv.ID)
 	}
 
 	servers, err := h.db.GetAllServers()
@@ -216,6 +238,36 @@ func (h *Handler) CreateServer(w http.ResponseWriter, r *http.Request) {
 	if isHTMX(r) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = pages.ServerTable(servers).Render(r.Context(), w)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// PingServer triggers an on-demand real probe check on the specified server node.
+func (h *Handler) PingServer(w http.ResponseWriter, r *http.Request) {
+	id := sanitizeID(chi.URLParam(r, "id"))
+	if id == "" {
+		http.Error(w, "Invalid server ID provided", http.StatusBadRequest)
+		return
+	}
+
+	var srv *models.Server
+	var err error
+	if h.monitor != nil {
+		srv, err = h.monitor.ProbeNow(r.Context(), id)
+	} else {
+		srv, err = h.db.GetServerByID(id)
+	}
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Probe check failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if isHTMX(r) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = pages.ServerRow(*srv).Render(r.Context(), w)
 		return
 	}
 
