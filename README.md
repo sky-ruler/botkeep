@@ -74,20 +74,20 @@ Modern DevOps dashboards often ship with hundreds of megabytes of client-side no
 BotKeep bypasses the SPA paradigm using **HTMX** and **a-h/templ**. All static assets (Tailwind CSS, HTMX script) and database schemas are bundled directly into the compiled executable via Go's `//go:embed`.
 
 ```mermaid
-graph TD
-    subgraph Browser ["Client Browser"]
-        A[HTML DOM Shell] -->|HTMX hx-post / hx-get| B(Chi HTTP Router)
-        L[Live Logs Panel] <-->|Polls every 4s| B
-        M[Cluster Metrics] <-->|Polls every 5s| B
-        E[Error Toast Listener] <--|Event: htmx:responseError| B
+flowchart TD
+    subgraph Browser[Client Browser]
+        A[HTML DOM Shell] -->|HTMX Triggers| B(Chi HTTP Router)
+        L[Live Logs Panel] <-->|Polls Every 4s| B
+        M[Cluster Metrics] <-->|Polls Every 5s| B
+        E[Error Toast Listener] <--|HTMX Error Events| B
     end
 
-    subgraph Binary ["BotKeep Single Executable"]
+    subgraph Binary[BotKeep Single Executable]
         B --> C[HTTP Handlers]
-        C --> D[a-h/templ Views Engine]
+        C --> D[templ Views Engine]
         C --> S[(Embedded SQLite WAL)]
         D -->|Type-Safe HTML Partials| B
-        FS[//go:embed Static Assets] -->|Serves /static/*| B
+        FS[Embedded Static Assets] -->|Serves Static Files| B
     end
 ```
 
