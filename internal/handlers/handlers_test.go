@@ -46,6 +46,8 @@ func setupTestServer(t *testing.T) (*chi.Mux, func()) {
 	r.Post("/servers/{id}/ping", h.PingServer)
 	r.Post("/servers/seed", h.SeedFleet)
 	r.Get("/metrics", h.GetMetrics)
+	r.Get("/metrics/prometheus", h.PrometheusMetrics)
+	r.Get("/api/fleet/export", h.ExportFleet)
 	r.Get("/logs", h.GetLogs)
 
 	cleanup := func() {
@@ -161,5 +163,45 @@ func TestPingServerHTMX(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "server-row-srv-us-101") {
 		t.Errorf("Expected response to contain updated server row")
+	}
+}
+
+func TestPrometheusMetrics(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	req := httptest.NewRequest("GET", "/metrics/prometheus", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "botkeep_servers_total") {
+		t.Errorf("Expected body to contain 'botkeep_servers_total'")
+	}
+	if !strings.Contains(body, "botkeep_host_allocated_mb") {
+		t.Errorf("Expected body to contain 'botkeep_host_allocated_mb'")
+	}
+}
+
+func TestExportFleet(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	req := httptest.NewRequest("GET", "/api/fleet/export", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+	contentType := w.Header().Get("Content-Type")
+	if !strings.Contains(contentType, "application/json") {
+		t.Errorf("Expected JSON content type, got %s", contentType)
+	}
+	if !strings.Contains(w.Body.String(), "srv-us-101") {
+		t.Errorf("Expected JSON export to contain seed server srv-us-101")
 	}
 }

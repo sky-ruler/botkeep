@@ -15,8 +15,8 @@ templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []
 		<!-- Top Action Bar & Header -->
 		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-800/60">
 			<div>
-				<h1 class="text-xl font-semibold tracking-tight text-zinc-100">Cluster Telemetry & Fleet Overview</h1>
-				<p class="text-xs text-zinc-400 mt-1">Real-time edge compute monitoring, state orchestration, and node telemetry.</p>
+				<h1 class="text-lg sm:text-xl font-semibold tracking-tight text-zinc-100">Fleet Telemetry & Production Observability</h1>
+				<p class="text-xs text-zinc-400 mt-1">Real-time edge compute monitoring, multi-protocol health checks, and rolling SLA compliance.</p>
 			</div>
 			<div class="flex flex-wrap items-center gap-2">
 				<!-- Poll Metrics Button -->
@@ -27,38 +27,22 @@ templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []
 					hx-swap="innerHTML"
 					hx-indicator="#global-indicator"
 					hx-disabled-elt="this"
-					class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors cursor-pointer"
+					class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors cursor-pointer shadow-sm"
 					title="Refresh cluster metrics"
 				>
 					@components.IconRefresh("w-3.5 h-3.5")
 					<span>Poll Metrics</span>
 				</button>
 
-				<!-- Simulate 500 Error Button to verify Error Toast resilience -->
+				<!-- Quick Deploy Focus Button -->
 				<button
 					type="button"
-					hx-post="/servers/simulate-error"
-					hx-swap="none"
-					hx-disabled-elt="this"
-					class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-colors cursor-pointer"
-					title="Test error toast notification resilience"
+					onclick="document.getElementById('deploy-name-input').focus()"
+					class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 text-zinc-950 hover:bg-white active:bg-zinc-200 transition-colors shadow-sm cursor-pointer"
+					title="Add new monitoring target"
 				>
-					@components.IconAlertCircle("w-3.5 h-3.5")
-					<span>Test Error Toast</span>
-				</button>
-
-				<!-- Purge Fleet to test Empty State resilience -->
-				<button
-					type="button"
-					hx-post="/servers/clear"
-					hx-target="#server-table-container"
-					hx-swap="innerHTML"
-					hx-indicator="#global-indicator"
-					hx-disabled-elt="this"
-					class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900/60 text-zinc-400 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-200 transition-colors cursor-pointer"
-					title="Clear database to inspect empty state"
-				>
-					<span>Purge (Test Empty)</span>
+					@components.IconPlus("w-3.5 h-3.5")
+					<span>Add Monitor</span>
 				</button>
 			</div>
 		</div>
@@ -90,7 +74,7 @@ templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []
 							type="text"
 							id="search-input"
 							name="q"
-							placeholder="Search nodes by name, ID, IP..."
+							placeholder="Search targets by name, ID, IP..."
 							class="w-full pl-8 pr-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans"
 						/>
 						<div class="absolute left-2.5 top-2 text-zinc-500 pointer-events-none">
@@ -104,7 +88,7 @@ templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []
 					<select
 						id="filter-status"
 						name="status"
-						class="px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
+						class="w-full sm:w-auto px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
 					>
 						<option value="all">All Statuses</option>
 						<option value="active">Active</option>
@@ -115,7 +99,7 @@ templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []
 					<select
 						id="filter-region"
 						name="region"
-						class="px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
+						class="w-full sm:w-auto px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
 					>
 						<option value="all">All Regions</option>
 						<option value="us-east-1">us-east-1</option>
@@ -131,31 +115,33 @@ templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []
 					hx-swap="innerHTML"
 					hx-indicator="#deploy-indicator"
 					hx-on::after-request="if(event.detail.successful) this.reset()"
-					class="flex flex-wrap items-center gap-2"
+					class="flex flex-wrap items-center gap-2 w-full lg:w-auto"
 				>
 					<input
 						type="text"
+						id="deploy-name-input"
 						name="name"
-						placeholder="Node / Service name"
+						placeholder="Target name (e.g. prod-api)"
 						required
-						class="w-36 sm:w-44 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans"
+						class="w-full sm:w-36 md:w-44 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans"
 					/>
 					<select
 						name="driver"
-						class="px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
+						class="w-full sm:w-auto px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
 					>
-						<option value="demo">Driver: Simulated</option>
-						<option value="http">Driver: HTTP Probe</option>
+						<option value="http">HTTP / HTTPS</option>
+						<option value="tcp">TCP Socket / DB</option>
+						<option value="demo">Simulated Node</option>
 					</select>
 					<input
 						type="text"
 						name="endpoint_url"
-						placeholder="Target URL (e.g. https://api.github.com)"
-						class="w-48 sm:w-56 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans font-mono"
+						placeholder="Target (e.g. https://api.github.com or host:5432)"
+						class="w-full sm:w-56 md:w-64 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans font-mono"
 					/>
 					<select
 						name="region"
-						class="px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
+						class="w-full sm:w-auto px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
 					>
 						<option value="us-east-1">us-east-1</option>
 						<option value="eu-central-1">eu-central-1</option>
@@ -163,7 +149,7 @@ templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []
 					</select>
 					<button
 						type="submit"
-						class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 text-zinc-950 hover:bg-white active:bg-zinc-200 transition-colors shadow-sm cursor-pointer whitespace-nowrap"
+						class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 text-zinc-950 hover:bg-white active:bg-zinc-200 transition-colors shadow-sm cursor-pointer whitespace-nowrap"
 					>
 						<span id="deploy-indicator" class="htmx-indicator">
 							@components.IconSpinner("w-3 h-3 text-zinc-900")
@@ -295,7 +281,7 @@ templ ServerTable(servers []models.Server) {
 				<thead>
 					<tr class="bg-zinc-900/80 text-zinc-400 font-medium">
 						<th scope="col" class="py-3 pl-4 pr-3">Node / Target</th>
-						<th scope="col" class="px-3 py-3">Driver</th>
+						<th scope="col" class="px-3 py-3">Driver & Protocol</th>
 						<th scope="col" class="px-3 py-3">Status</th>
 						<th scope="col" class="px-3 py-3">Latency & SLA</th>
 						<th scope="col" class="px-3 py-3">Resources</th>
@@ -318,8 +304,10 @@ templ ServerRow(s models.Server) {
 		<!-- Name & ID (Clickable to open inspector drawer) -->
 		<td class="py-3.5 pl-4 pr-3 font-sans">
 			<div class="flex items-center gap-3">
-				<div class="w-8 h-8 rounded-lg bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-300 group-hover:border-zinc-500 transition-colors">
-					if s.Driver == "http" {
+				<div class="w-8 h-8 rounded-lg bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-300 group-hover:border-zinc-500 transition-colors flex-shrink-0">
+					if s.Driver == "tcp" {
+						@components.IconDatabase("w-4 h-4 text-amber-400")
+					} else if s.Driver == "http" {
 						@components.IconGlobe("w-4 h-4 text-cyan-400")
 					} else {
 						@components.IconServer("w-4 h-4")
@@ -341,18 +329,24 @@ templ ServerRow(s models.Server) {
 					</button>
 					<div class="flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
 						<span>{ s.ID }</span>
-						if s.Driver == "http" && s.EndpointURL != "" {
+						if s.EndpointURL != "" {
 							<span class="text-zinc-600">•</span>
-							<span class="text-cyan-400/80 truncate max-w-[150px] sm:max-w-[200px]" title={ s.EndpointURL }>{ s.EndpointURL }</span>
+							<span class="text-cyan-400/80 truncate max-w-[140px] sm:max-w-[200px]" title={ s.EndpointURL }>{ s.EndpointURL }</span>
 						}
 					</div>
 				</div>
 			</div>
 		</td>
 
-		<!-- Driver Type Badge -->
+		<!-- Driver Type & Protocol & SSL Badges -->
 		<td class="px-3 py-3.5 font-sans">
-			@components.DriverBadge(s.Driver)
+			<div class="flex flex-wrap items-center gap-1.5">
+				@components.DriverBadge(s.Driver)
+				@components.ProtocolBadge(s.Protocol)
+				if s.SSLExpiryDays >= 0 {
+					@components.SSLBadge(s.SSLExpiryDays)
+				}
+			</div>
 		</td>
 
 		<!-- Status Badge -->

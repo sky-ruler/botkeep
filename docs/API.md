@@ -1,6 +1,6 @@
 # BotKeep API & Endpoint Documentation
 
-BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](https://github.com/go-chi/chi) and [HTMX](https://htmx.org). All endpoints gracefully support standard HTTP clients while returning localized HTML partials rendered with [templ](https://templ.guide) when called with the `HX-Request: true` header.
+BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](https://github.com/go-chi/chi) and [HTMX](https://htmx.org). All endpoints gracefully support standard HTTP clients and monitoring scrapers, while returning localized HTML partials rendered with [templ](https://templ.guide) when called with the `HX-Request: true` header.
 
 ---
 
@@ -10,6 +10,8 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
 | :--- | :--- |
 | `HX-Request: true` | Informs BotKeep that the request originated from HTMX. The handler returns an atomic HTML partial instead of performing a full page redirect. |
 | `Content-Type: application/x-www-form-urlencoded` | Standard form encoding for state mutations and node provisioning. |
+| `Accept: text/plain` | Used when scraping Prometheus OpenMetrics format from `/metrics/prometheus`. |
+| `Accept: application/json` | Used when downloading fleet backups from `/api/fleet/export`. |
 
 ---
 
@@ -18,7 +20,7 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
 ### 1. Fleet Dashboard & Web UI
 
 #### `GET /`
-- **Description**: Renders the complete application shell, including the navigation sidebar, telemetry metrics grid, fleet table, live orchestration logs terminal, and drawer container.
+- **Description**: Renders the complete responsive application shell, including the desktop sidebar / mobile drawer overlay, telemetry metrics grid, fleet table, quick deploy bar, and live orchestration logs terminal.
 - **Response**: `200 OK` (Full HTML document)
 
 #### `GET /healthz`
@@ -27,7 +29,45 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
 
 ---
 
-### 2. Fleet Node Management
+### 2. Enterprise Observability & Integrations
+
+#### `GET /metrics/prometheus`
+- **Description**: Exposes fleet telemetry, node uptime, latency, and host Go runtime statistics in standard **Prometheus / OpenMetrics** text exposition format.
+- **Response**: `200 OK` (`text/plain; version=0.0.4; charset=utf-8`)
+- **Exported Metric Series**:
+  - `botkeep_servers_total`: Total count of registered targets in fleet.
+  - `botkeep_servers_active`: Count of operational targets in fleet.
+  - `botkeep_node_up{id, name, region, driver, protocol}`: Operational status of the monitored target (1 = active/up, 0 = stopped/down).
+  - `botkeep_node_latency_ms{id, name}`: Sub-millisecond roundtrip probe latency.
+  - `botkeep_node_uptime_pct{id, name}`: Rolling SLA compliance percentage.
+  - `botkeep_node_ssl_expiry_days{id, name}`: Days remaining until peer TLS/SSL certificate expiration.
+  - `botkeep_host_allocated_mb`: Heap memory allocated by the Go runtime engine in megabytes.
+  - `botkeep_host_goroutines`: Count of active Go engine goroutines.
+  - `botkeep_host_gc_cycles`: Total garbage collection passes performed.
+
+#### `GET /api/fleet/export`
+- **Description**: Streams the complete fleet configuration, driver definitions, target endpoints, regions, and current telemetry states as a downloadable JSON backup file (`botkeep-fleet-backup-<timestamp>.json`).
+- **Response**: `200 OK` (`application/json`) with `Content-Disposition: attachment`
+
+#### `BOTKEEP_WEBHOOK_URL` (Environment Variable)
+- **Description**: When configured, BotKeep automatically dispatches asynchronous JSON alerts to your incident webhook (Slack, Discord, PagerDuty, or custom webhook) on downtime incidents and recovery events.
+- **Webhook Payload Format**:
+  ```json
+  {
+    "event": "INCIDENT_DOWN",
+    "server_id": "srv-us-101",
+    "server_name": "production-api-gateway",
+    "region": "us-east-1",
+    "driver": "http",
+    "protocol": "HTTPS",
+    "details": "HTTP status 503",
+    "timestamp": "2026-10-12T04:20:00Z"
+  }
+  ```
+
+---
+
+### 3. Fleet Node Management & Multi-Protocol Probing
 
 #### `GET /servers`
 - **Description**: Queries and filters the fleet node catalog.
@@ -39,18 +79,21 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
   - `200 OK` (`text/html`): Returns `@pages.ServerTable` partial. If no nodes match, returns `@components.EmptyState`.
 
 #### `POST /servers/new`
-- **Description**: Provisions and registers a new edge node or HTTP health check probe.
+- **Description**: Provisions and registers a new edge node, HTTP/HTTPS web target, or TCP socket target.
 - **Form Parameters**:
   - `name` *(string, required)*: Node identifier label (minimum 3 characters).
-  - `region` *(string, optional)*: Cloud deployment zone (default: `us-east-1`).
-  - `driver` *(string, optional)*: Prober engine driver (`http`, `system`, `demo`). Default: `demo` (or `http` if URL provided).
-  - `endpoint_url` *(string, optional)*: Target URL for active HTTP probing (e.g. `https://api.github.com`).
+  - `region` *(string, optional)*: Cloud deployment zone (`us-east-1`, `eu-central-1`, `ap-southeast-1`). Default: `us-east-1`.
+  - `driver` *(string, optional)*: Prober engine driver:
+    - `http`: Web endpoint health check with automatic TLS certificate inspection.
+    - `tcp`: Direct TCP socket / port health check (PostgreSQL `host:5432`, Redis `host:6379`, SSH `host:22`).
+    - `demo`: Simulated node with organic telemetry jitter.
+  - `endpoint_url` *(string, optional)*: Target URL or `host:port` address (e.g. `https://api.github.com` or `db.internal:5432`).
 - **Response**:
   - `200 OK` (`text/html`): Refreshed `@pages.ServerTable` partial.
   - `400 Bad Request`: Validation failure message.
 
 #### `POST /servers/{id}/ping`
-- **Description**: Triggers an **immediate on-demand health check probe** against the node, updates latency metrics and rolling SLA, and records a probe point.
+- **Description**: Triggers an **immediate on-demand health check probe** against the node (HTTP GET request or TCP socket dial), updates latency and SLA, extracts TLS certificate expiry if HTTPS, and records a probe point.
 - **Path Parameters**:
   - `id` *(string, required)*: Node identifier (e.g. `srv-us-101`).
 - **Response**:
@@ -78,14 +121,14 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
   - `200 OK` (`text/html`): Updated `@pages.ServerRow` partial.
 
 #### `DELETE /servers/{id}` *(or `POST /servers/{id}/delete`)*
-- **Description**: Decommissions and permanently purges a node and its probe history.
+- **Description**: Decommissions and permanently purges a node and its historical probe points.
 - **Path Parameters**:
   - `id` *(string, required)*: Node identifier.
 - **Response**:
   - `200 OK` (`text/html`): Refreshed `@pages.ServerTable` partial.
 
 #### `GET /servers/{id}/details`
-- **Description**: Returns the slide-over inspector drawer partial displaying 4 live gauges (Latency, SLA %, CPU %, RAM %), driver configuration, endpoint URL, historical probe log, and node audit trail.
+- **Description**: Returns the slide-over inspector drawer partial displaying 4 live gauges (Latency, SLA %, CPU %, RAM %), driver configuration, protocol, TLS certificate expiration days, target endpoint, historical probe log, and node audit trail.
 - **Path Parameters**:
   - `id` *(string, required)*: Node identifier.
 - **Response**:
@@ -93,7 +136,7 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
 
 ---
 
-### 3. Telemetry & Logs Polling
+### 4. Telemetry & Logs Polling
 
 #### `GET /metrics`
 - **Description**: Calculates and returns aggregate fleet telemetry and host runtime metrics:
@@ -116,21 +159,7 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
 - **Response**:
   - `200 OK` (`text/html`): Empty `@pages.LogsStream` partial.
 
----
-
-### 4. Fleet Testing & Resilience Diagnostics
-
 #### `POST /servers/seed`
-- **Description**: Re-populates the database with demo fleet instances (HTTP gateways, IPC sockets, and replica clusters).
+- **Description**: Re-populates the database with production demonstration fleet instances (HTTP APIs, TCP database sockets, and edge CDN endpoints with live TLS certificates).
 - **Response**:
   - `200 OK` (`text/html`): Refreshed `@pages.ServerTable` partial.
-
-#### `POST /servers/clear`
-- **Description**: Purges all fleet instances to test the illustrative Empty State component.
-- **Response**:
-  - `200 OK` (`text/html`): `@components.EmptyState` partial.
-
-#### `POST /servers/simulate-error`
-- **Description**: Intentionally triggers an HTTP 500 error response to test non-intrusive client toast notification resilience.
-- **Response**:
-  - `500 Internal Server Error`: Diagnostic RPC failure string.

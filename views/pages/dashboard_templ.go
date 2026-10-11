@@ -48,7 +48,7 @@ func Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []m
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!-- Drawer Container for Node Inspection --> <div id=\"drawer-container\"></div><!-- Top Action Bar & Header --> <div class=\"flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-800/60\"><div><h1 class=\"text-xl font-semibold tracking-tight text-zinc-100\">Cluster Telemetry & Fleet Overview</h1><p class=\"text-xs text-zinc-400 mt-1\">Real-time edge compute monitoring, state orchestration, and node telemetry.</p></div><div class=\"flex flex-wrap items-center gap-2\"><!-- Poll Metrics Button --><button type=\"button\" hx-get=\"/metrics\" hx-target=\"#metrics-grid\" hx-swap=\"innerHTML\" hx-indicator=\"#global-indicator\" hx-disabled-elt=\"this\" class=\"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors cursor-pointer\" title=\"Refresh cluster metrics\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!-- Drawer Container for Node Inspection --> <div id=\"drawer-container\"></div><!-- Top Action Bar & Header --> <div class=\"flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-800/60\"><div><h1 class=\"text-lg sm:text-xl font-semibold tracking-tight text-zinc-100\">Fleet Telemetry & Production Observability</h1><p class=\"text-xs text-zinc-400 mt-1\">Real-time edge compute monitoring, multi-protocol health checks, and rolling SLA compliance.</p></div><div class=\"flex flex-wrap items-center gap-2\"><!-- Poll Metrics Button --><button type=\"button\" hx-get=\"/metrics\" hx-target=\"#metrics-grid\" hx-swap=\"innerHTML\" hx-indicator=\"#global-indicator\" hx-disabled-elt=\"this\" class=\"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors cursor-pointer shadow-sm\" title=\"Refresh cluster metrics\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -56,15 +56,15 @@ func Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []m
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<span>Poll Metrics</span></button><!-- Simulate 500 Error Button to verify Error Toast resilience --><button type=\"button\" hx-post=\"/servers/simulate-error\" hx-swap=\"none\" hx-disabled-elt=\"this\" class=\"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-colors cursor-pointer\" title=\"Test error toast notification resilience\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<span>Poll Metrics</span></button><!-- Quick Deploy Focus Button --><button type=\"button\" onclick=\"document.getElementById(&#39;deploy-name-input&#39;).focus()\" class=\"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 text-zinc-950 hover:bg-white active:bg-zinc-200 transition-colors shadow-sm cursor-pointer\" title=\"Add new monitoring target\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.IconAlertCircle("w-3.5 h-3.5").Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = components.IconPlus("w-3.5 h-3.5").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<span>Test Error Toast</span></button><!-- Purge Fleet to test Empty State resilience --><button type=\"button\" hx-post=\"/servers/clear\" hx-target=\"#server-table-container\" hx-swap=\"innerHTML\" hx-indicator=\"#global-indicator\" hx-disabled-elt=\"this\" class=\"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900/60 text-zinc-400 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-200 transition-colors cursor-pointer\" title=\"Clear database to inspect empty state\"><span>Purge (Test Empty)</span></button></div></div><!-- Section 1: Dashboard Overview Grid (Auto-polled by HTMX every 5s) --> <div id=\"metrics-grid\" hx-get=\"/metrics\" hx-trigger=\"every 5s\" hx-swap=\"innerHTML\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<span>Add Monitor</span></button></div></div><!-- Section 1: Dashboard Overview Grid (Auto-polled by HTMX every 5s) --> <div id=\"metrics-grid\" hx-get=\"/metrics\" hx-trigger=\"every 5s\" hx-swap=\"innerHTML\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -72,7 +72,7 @@ func Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []m
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div><!-- Section 2: Server Fleet Table & Node Provisioning --> <div class=\"space-y-4\"><div class=\"flex flex-col lg:flex-row lg:items-center justify-between gap-3\"><!-- Search and Status Filtering Form --><form id=\"filter-form\" hx-get=\"/servers\" hx-target=\"#server-table-container\" hx-swap=\"innerHTML\" hx-trigger=\"submit, keyup changed delay:250ms from:#search-input, change from:#filter-status, change from:#filter-region\" class=\"flex flex-wrap items-center gap-2 flex-1\"><div class=\"relative w-full sm:w-64\"><input type=\"text\" id=\"search-input\" name=\"q\" placeholder=\"Search nodes by name, ID, IP...\" class=\"w-full pl-8 pr-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans\"><div class=\"absolute left-2.5 top-2 text-zinc-500 pointer-events-none\"><svg class=\"w-3.5 h-3.5\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"11\" cy=\"11\" r=\"8\"></circle> <line x1=\"21\" y1=\"21\" x2=\"16.65\" y2=\"16.65\"></line></svg></div></div><select id=\"filter-status\" name=\"status\" class=\"px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer\"><option value=\"all\">All Statuses</option> <option value=\"active\">Active</option> <option value=\"stopped\">Stopped</option> <option value=\"deploying\">Deploying</option></select> <select id=\"filter-region\" name=\"region\" class=\"px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer\"><option value=\"all\">All Regions</option> <option value=\"us-east-1\">us-east-1</option> <option value=\"eu-central-1\">eu-central-1</option> <option value=\"ap-southeast-1\">ap-southeast-1</option></select></form><!-- Quick Deploy Node Inline Bar --><form hx-post=\"/servers/new\" hx-target=\"#server-table-container\" hx-swap=\"innerHTML\" hx-indicator=\"#deploy-indicator\" hx-on::after-request=\"if(event.detail.successful) this.reset()\" class=\"flex flex-wrap items-center gap-2\"><input type=\"text\" name=\"name\" placeholder=\"Node / Service name\" required class=\"w-36 sm:w-44 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans\"> <select name=\"driver\" class=\"px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer\"><option value=\"demo\">Driver: Simulated</option> <option value=\"http\">Driver: HTTP Probe</option></select> <input type=\"text\" name=\"endpoint_url\" placeholder=\"Target URL (e.g. https://api.github.com)\" class=\"w-48 sm:w-56 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans font-mono\"> <select name=\"region\" class=\"px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer\"><option value=\"us-east-1\">us-east-1</option> <option value=\"eu-central-1\">eu-central-1</option> <option value=\"ap-southeast-1\">ap-southeast-1</option></select> <button type=\"submit\" class=\"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 text-zinc-950 hover:bg-white active:bg-zinc-200 transition-colors shadow-sm cursor-pointer whitespace-nowrap\"><span id=\"deploy-indicator\" class=\"htmx-indicator\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div><!-- Section 2: Server Fleet Table & Node Provisioning --> <div class=\"space-y-4\"><div class=\"flex flex-col lg:flex-row lg:items-center justify-between gap-3\"><!-- Search and Status Filtering Form --><form id=\"filter-form\" hx-get=\"/servers\" hx-target=\"#server-table-container\" hx-swap=\"innerHTML\" hx-trigger=\"submit, keyup changed delay:250ms from:#search-input, change from:#filter-status, change from:#filter-region\" class=\"flex flex-wrap items-center gap-2 flex-1\"><div class=\"relative w-full sm:w-64\"><input type=\"text\" id=\"search-input\" name=\"q\" placeholder=\"Search targets by name, ID, IP...\" class=\"w-full pl-8 pr-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans\"><div class=\"absolute left-2.5 top-2 text-zinc-500 pointer-events-none\"><svg class=\"w-3.5 h-3.5\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"11\" cy=\"11\" r=\"8\"></circle> <line x1=\"21\" y1=\"21\" x2=\"16.65\" y2=\"16.65\"></line></svg></div></div><select id=\"filter-status\" name=\"status\" class=\"w-full sm:w-auto px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer\"><option value=\"all\">All Statuses</option> <option value=\"active\">Active</option> <option value=\"stopped\">Stopped</option> <option value=\"deploying\">Deploying</option></select> <select id=\"filter-region\" name=\"region\" class=\"w-full sm:w-auto px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer\"><option value=\"all\">All Regions</option> <option value=\"us-east-1\">us-east-1</option> <option value=\"eu-central-1\">eu-central-1</option> <option value=\"ap-southeast-1\">ap-southeast-1</option></select></form><!-- Quick Deploy Node Inline Bar --><form hx-post=\"/servers/new\" hx-target=\"#server-table-container\" hx-swap=\"innerHTML\" hx-indicator=\"#deploy-indicator\" hx-on::after-request=\"if(event.detail.successful) this.reset()\" class=\"flex flex-wrap items-center gap-2 w-full lg:w-auto\"><input type=\"text\" id=\"deploy-name-input\" name=\"name\" placeholder=\"Target name (e.g. prod-api)\" required class=\"w-full sm:w-36 md:w-44 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans\"> <select name=\"driver\" class=\"w-full sm:w-auto px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer\"><option value=\"http\">HTTP / HTTPS</option> <option value=\"tcp\">TCP Socket / DB</option> <option value=\"demo\">Simulated Node</option></select> <input type=\"text\" name=\"endpoint_url\" placeholder=\"Target (e.g. https://api.github.com or host:5432)\" class=\"w-full sm:w-56 md:w-64 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans font-mono\"> <select name=\"region\" class=\"w-full sm:w-auto px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer\"><option value=\"us-east-1\">us-east-1</option> <option value=\"eu-central-1\">eu-central-1</option> <option value=\"ap-southeast-1\">ap-southeast-1</option></select> <button type=\"submit\" class=\"w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 text-zinc-950 hover:bg-white active:bg-zinc-200 transition-colors shadow-sm cursor-pointer whitespace-nowrap\"><span id=\"deploy-indicator\" class=\"htmx-indicator\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -243,7 +243,7 @@ func ServerTable(servers []models.Server) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/40 shadow-sm\"><table class=\"min-w-full divide-y divide-zinc-800 text-left text-xs\"><thead><tr class=\"bg-zinc-900/80 text-zinc-400 font-medium\"><th scope=\"col\" class=\"py-3 pl-4 pr-3\">Node / Target</th><th scope=\"col\" class=\"px-3 py-3\">Driver</th><th scope=\"col\" class=\"px-3 py-3\">Status</th><th scope=\"col\" class=\"px-3 py-3\">Latency & SLA</th><th scope=\"col\" class=\"px-3 py-3\">Resources</th><th scope=\"col\" class=\"px-3 py-3\">Region & Age</th><th scope=\"col\" class=\"py-3 pl-3 pr-4 text-right\">Actions</th></tr></thead> <tbody id=\"server-table-body\" class=\"divide-y divide-zinc-800/60 font-mono\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/40 shadow-sm\"><table class=\"min-w-full divide-y divide-zinc-800 text-left text-xs\"><thead><tr class=\"bg-zinc-900/80 text-zinc-400 font-medium\"><th scope=\"col\" class=\"py-3 pl-4 pr-3\">Node / Target</th><th scope=\"col\" class=\"px-3 py-3\">Driver & Protocol</th><th scope=\"col\" class=\"px-3 py-3\">Status</th><th scope=\"col\" class=\"px-3 py-3\">Latency & SLA</th><th scope=\"col\" class=\"px-3 py-3\">Resources</th><th scope=\"col\" class=\"px-3 py-3\">Region & Age</th><th scope=\"col\" class=\"py-3 pl-3 pr-4 text-right\">Actions</th></tr></thead> <tbody id=\"server-table-body\" class=\"divide-y divide-zinc-800/60 font-mono\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -290,17 +290,22 @@ func ServerRow(s models.Server) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs("server-row-" + s.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 317, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 303, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" class=\"hover:bg-zinc-800/30 transition-colors group\"><!-- Name & ID (Clickable to open inspector drawer) --><td class=\"py-3.5 pl-4 pr-3 font-sans\"><div class=\"flex items-center gap-3\"><div class=\"w-8 h-8 rounded-lg bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-300 group-hover:border-zinc-500 transition-colors\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" class=\"hover:bg-zinc-800/30 transition-colors group\"><!-- Name & ID (Clickable to open inspector drawer) --><td class=\"py-3.5 pl-4 pr-3 font-sans\"><div class=\"flex items-center gap-3\"><div class=\"w-8 h-8 rounded-lg bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-300 group-hover:border-zinc-500 transition-colors flex-shrink-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if s.Driver == "http" {
+		if s.Driver == "tcp" {
+			templ_7745c5c3_Err = components.IconDatabase("w-4 h-4 text-amber-400").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else if s.Driver == "http" {
 			templ_7745c5c3_Err = components.IconGlobe("w-4 h-4 text-cyan-400").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -318,7 +323,7 @@ func ServerRow(s models.Server) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs("/servers/" + s.ID + "/details")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 331, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 319, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -331,7 +336,7 @@ func ServerRow(s models.Server) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(s.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 337, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 325, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -344,7 +349,7 @@ func ServerRow(s models.Server) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs("indicator-" + s.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 338, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 326, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -365,7 +370,7 @@ func ServerRow(s models.Server) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(s.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 343, Col: 18}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 331, Col: 18}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -375,15 +380,15 @@ func ServerRow(s models.Server) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if s.Driver == "http" && s.EndpointURL != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<span class=\"text-zinc-600\">•</span> <span class=\"text-cyan-400/80 truncate max-w-[150px] sm:max-w-[200px]\" title=\"")
+		if s.EndpointURL != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<span class=\"text-zinc-600\">•</span> <span class=\"text-cyan-400/80 truncate max-w-[140px] sm:max-w-[200px]\" title=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(s.EndpointURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 346, Col: 99}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 334, Col: 99}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -396,7 +401,7 @@ func ServerRow(s models.Server) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(s.EndpointURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 346, Col: 117}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 334, Col: 117}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -407,7 +412,7 @@ func ServerRow(s models.Server) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</div></div></div></td><!-- Driver Type Badge --><td class=\"px-3 py-3.5 font-sans\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</div></div></div></td><!-- Driver Type & Protocol & SSL Badges --><td class=\"px-3 py-3.5 font-sans\"><div class=\"flex flex-wrap items-center gap-1.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -415,7 +420,17 @@ func ServerRow(s models.Server) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</td><!-- Status Badge --><td class=\"px-3 py-3.5 font-sans\">")
+		templ_7745c5c3_Err = components.ProtocolBadge(s.Protocol).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if s.SSLExpiryDays >= 0 {
+			templ_7745c5c3_Err = components.SSLBadge(s.SSLExpiryDays).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</div></td><!-- Status Badge --><td class=\"px-3 py-3.5 font-sans\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -440,7 +455,7 @@ func ServerRow(s models.Server) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1fms", s.LatencyMS))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 370, Col: 78}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 364, Col: 78}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -479,7 +494,7 @@ func ServerRow(s models.Server) templ.Component {
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1f%%", s.UptimePct))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 376, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 370, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
@@ -508,7 +523,7 @@ func ServerRow(s models.Server) templ.Component {
 					var templ_7745c5c3_Var17 string
 					templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1fms", pt.LatencyMS))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 385, Col: 108}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 379, Col: 108}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 					if templ_7745c5c3_Err != nil {
@@ -526,7 +541,7 @@ func ServerRow(s models.Server) templ.Component {
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("Error HTTP %d", pt.StatusCode))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 387, Col: 110}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 381, Col: 110}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -560,7 +575,7 @@ func ServerRow(s models.Server) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(fmt.Sprintf("width: %d%%", int(s.CPUUsage)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 404, Col: 100}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 398, Col: 100}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -573,7 +588,7 @@ func ServerRow(s models.Server) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.0f%%", s.CPUUsage))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 406, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 400, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
@@ -586,7 +601,7 @@ func ServerRow(s models.Server) templ.Component {
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(fmt.Sprintf("width: %d%%", int(s.MemoryUsage)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 411, Col: 103}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 405, Col: 103}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -599,7 +614,7 @@ func ServerRow(s models.Server) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.0f%%", s.MemoryUsage))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 413, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 407, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -617,7 +632,7 @@ func ServerRow(s models.Server) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(s.Region)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 421, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 415, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -630,7 +645,7 @@ func ServerRow(s models.Server) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(s.Uptime)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 422, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 416, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -643,7 +658,7 @@ func ServerRow(s models.Server) templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs("/servers/" + s.ID + "/ping")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 431, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 425, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -656,7 +671,7 @@ func ServerRow(s models.Server) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs("#server-row-" + s.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 432, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 426, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -669,7 +684,7 @@ func ServerRow(s models.Server) templ.Component {
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs("#ping-spin-" + s.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 434, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 428, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -682,7 +697,7 @@ func ServerRow(s models.Server) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs("ping-spin-" + s.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 438, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 432, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -734,7 +749,7 @@ func ServerRow(s models.Server) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs("/servers/" + s.ID + "/details")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 455, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 449, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -783,7 +798,7 @@ func LogsStream(logs []models.LogEntry) templ.Component {
 				var templ_7745c5c3_Var31 string
 				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(l.CreatedAt.Format("15:04:05.000"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 478, Col: 94}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 472, Col: 94}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 				if templ_7745c5c3_Err != nil {
@@ -822,7 +837,7 @@ func LogsStream(logs []models.LogEntry) templ.Component {
 					var templ_7745c5c3_Var32 string
 					templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(l.Level)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 489, Col: 117}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 483, Col: 117}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 					if templ_7745c5c3_Err != nil {
@@ -840,7 +855,7 @@ func LogsStream(logs []models.LogEntry) templ.Component {
 				var templ_7745c5c3_Var33 string
 				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(l.Message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 491, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 485, Col: 53}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 				if templ_7745c5c3_Err != nil {

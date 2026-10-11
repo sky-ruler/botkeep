@@ -1,6 +1,9 @@
 package components
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 type StatusType string
 
@@ -64,6 +67,11 @@ templ DriverBadge(driver string) {
 				<span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
 				HTTP
 			</span>
+		case "tcp":
+			<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm">
+				<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+				TCP
+			</span>
 		case "system":
 			<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20 shadow-sm">
 				<span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
@@ -74,6 +82,31 @@ templ DriverBadge(driver string) {
 				<span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
 				SIMULATED
 			</span>
+	}
+}
+
+templ SSLBadge(days int) {
+	if days > 30 {
+		<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" title="Valid TLS/SSL certificate">
+			<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+			{ fmt.Sprintf("SSL %dd", days) }
+		</span>
+	} else if days >= 0 {
+		<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse" title="SSL certificate expiring soon!">
+			<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+			{ fmt.Sprintf("SSL %dd!", days) }
+		</span>
+	}
+}
+
+templ ProtocolBadge(proto string) {
+	switch strings.ToUpper(proto) {
+		case "HTTPS":
+			<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">HTTPS</span>
+		case "TCP":
+			<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">TCP</span>
+		default:
+			<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-zinc-800 text-zinc-300 border border-zinc-700/60">HTTP</span>
 	}
 }
 

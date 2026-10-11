@@ -170,7 +170,6 @@ func TestRecordProbe(t *testing.T) {
 	}
 }
 
-
 func TestGetHostMetrics(t *testing.T) {
 	metrics := GetHostMetrics()
 	if metrics.NumGoroutine <= 0 {

@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -122,5 +123,51 @@ func TestProbeNowOnDemand(t *testing.T) {
 	}
 	if probed.ID != srv.ID {
 		t.Errorf("Expected server ID %s, got %s", srv.ID, probed.ID)
+	}
+}
+
+func TestProbeServerTCP(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Spin up real local TCP listener
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to listen on tcp: %v", err)
+	}
+	defer ln.Close()
+
+	// Handle connections in background
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			conn.Close()
+		}
+	}()
+
+	srv, err := db.CreateServer("redis-mock", "us-east-1", "tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatalf("Failed to create server: %v", err)
+	}
+
+	engine := NewEngine(db, time.Minute)
+	err = engine.ProbeServer(context.Background(), *srv)
+	if err != nil {
+		t.Fatalf("ProbeServer TCP failed: %v", err)
+	}
+
+	updated, err := db.GetServerByID(srv.ID)
+	if err != nil {
+		t.Fatalf("GetServerByID failed: %v", err)
+	}
+
+	if updated.Status != "active" {
+		t.Errorf("Expected status active for reachable TCP port, got %s", updated.Status)
+	}
+	if updated.LatencyMS <= 0 {
+		t.Errorf("Expected positive latency for TCP probe, got %f", updated.LatencyMS)
 	}
 }

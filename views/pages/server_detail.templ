@@ -12,15 +12,21 @@ templ ServerDetailDrawer(s models.Server, logs []models.LogEntry) {
 		<div class="fixed inset-0" onclick="document.getElementById('detail-drawer').remove()"></div>
 
 		<!-- Slide-over panel -->
-		<div class="relative w-full max-w-lg bg-zinc-900 border-l border-zinc-800 shadow-2xl flex flex-col h-full z-10 overflow-y-auto">
+		<div class="relative w-full sm:max-w-md md:max-w-lg bg-zinc-900 border-l border-zinc-800 shadow-2xl flex flex-col h-full z-10 overflow-y-auto">
 			<!-- Header -->
-			<div class="p-6 border-b border-zinc-800 flex items-start justify-between bg-zinc-900/90 sticky top-0 z-20 backdrop-blur-md">
+			<div class="p-5 sm:p-6 border-b border-zinc-800 flex items-start justify-between bg-zinc-900/90 sticky top-0 z-20 backdrop-blur-md">
 				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-zinc-200">
-						@components.IconServer("w-5 h-5")
+					<div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-zinc-200 flex-shrink-0">
+						if s.Driver == "tcp" {
+							@components.IconDatabase("w-5 h-5 text-amber-400")
+						} else if s.Driver == "http" {
+							@components.IconGlobe("w-5 h-5 text-cyan-400")
+						} else {
+							@components.IconServer("w-5 h-5")
+						}
 					</div>
 					<div>
-						<div class="flex items-center gap-2">
+						<div class="flex flex-wrap items-center gap-2">
 							<h3 class="text-base font-semibold text-zinc-100 tracking-tight">{ s.Name }</h3>
 							@components.ServerStatusBadge(s.Status)
 						</div>
@@ -42,11 +48,11 @@ templ ServerDetailDrawer(s models.Server, logs []models.LogEntry) {
 			</div>
 
 			<!-- Body -->
-			<div class="p-6 space-y-6 flex-1">
+			<div class="p-5 sm:p-6 space-y-6 flex-1">
 				<!-- Action Triggers inside Drawer -->
-				<div class="flex items-center justify-between p-3.5 rounded-lg bg-zinc-950/60 border border-zinc-800">
+				<div class="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-lg bg-zinc-950/60 border border-zinc-800">
 					<span class="text-xs font-medium text-zinc-400">Node State Actions</span>
-					<div class="flex items-center gap-2">
+					<div class="flex flex-wrap items-center gap-2">
 						if s.Status == "stopped" {
 							@components.ActionButton("start", s.ID, false)
 						} else {
@@ -73,8 +79,8 @@ templ ServerDetailDrawer(s models.Server, logs []models.LogEntry) {
 					</div>
 				</div>
 
-				<!-- Telemetry Gauges -->
-				<div class="grid grid-cols-4 gap-2.5">
+				<!-- Telemetry Gauges (Responsive 2-col on mobile, 4-col on desktop) -->
+				<div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
 					<div class="p-3 rounded-lg bg-zinc-950/40 border border-zinc-800">
 						<span class="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">Latency</span>
 						<p class="text-base font-semibold text-cyan-400 font-mono mt-1">{ fmt.Sprintf("%.1fms", s.LatencyMS) }</p>
@@ -95,34 +101,49 @@ templ ServerDetailDrawer(s models.Server, logs []models.LogEntry) {
 
 				<!-- Node Metadata -->
 				<div class="rounded-lg bg-zinc-950/40 border border-zinc-800 p-4 space-y-2.5 text-xs">
-					<div class="flex justify-between py-1 border-b border-zinc-800/60">
-						<span class="text-zinc-500">Driver Type</span>
-						<div>@components.DriverBadge(s.Driver)</div>
+					<div class="flex items-center justify-between py-1 border-b border-zinc-800/60">
+						<span class="text-zinc-500">Driver & Protocol</span>
+						<div class="flex items-center gap-1.5">
+							@components.DriverBadge(s.Driver)
+							@components.ProtocolBadge(s.Protocol)
+						</div>
 					</div>
-					if s.Driver == "http" && s.EndpointURL != "" {
-						<div class="flex justify-between py-1 border-b border-zinc-800/60">
-							<span class="text-zinc-500">Endpoint URL</span>
-							<a href={ templ.SafeURL(s.EndpointURL) } target="_blank" rel="noopener noreferrer" class="font-mono text-cyan-400 hover:underline truncate max-w-[240px]">{ s.EndpointURL }</a>
+					if s.SSLExpiryDays >= 0 {
+						<div class="flex items-center justify-between py-1 border-b border-zinc-800/60">
+							<span class="text-zinc-500">TLS Peer Certificate</span>
+							<div>
+								@components.SSLBadge(s.SSLExpiryDays)
+							</div>
 						</div>
 					}
-					<div class="flex justify-between py-1 border-b border-zinc-800/60">
+					if s.EndpointURL != "" {
+						<div class="flex items-center justify-between py-1 border-b border-zinc-800/60">
+							<span class="text-zinc-500">Endpoint Target</span>
+							if s.Driver == "http" {
+								<a href={ templ.SafeURL(s.EndpointURL) } target="_blank" rel="noopener noreferrer" class="font-mono text-cyan-400 hover:underline truncate max-w-[200px] sm:max-w-[240px]">{ s.EndpointURL }</a>
+							} else {
+								<span class="font-mono text-amber-400 truncate max-w-[200px] sm:max-w-[240px]">{ s.EndpointURL }</span>
+							}
+						</div>
+					}
+					<div class="flex items-center justify-between py-1 border-b border-zinc-800/60">
 						<span class="text-zinc-500">Node Identifier</span>
 						<span class="font-mono text-zinc-300">{ s.ID }</span>
 					</div>
-					<div class="flex justify-between py-1 border-b border-zinc-800/60">
+					<div class="flex items-center justify-between py-1 border-b border-zinc-800/60">
 						<span class="text-zinc-500">Network Host</span>
 						<span class="font-mono text-zinc-300">{ s.IPAddress }</span>
 					</div>
-					<div class="flex justify-between py-1 border-b border-zinc-800/60">
+					<div class="flex items-center justify-between py-1 border-b border-zinc-800/60">
 						<span class="text-zinc-500">Availability Zone</span>
 						<span class="text-zinc-300">{ s.Region }</span>
 					</div>
-					<div class="flex justify-between py-1 border-b border-zinc-800/60">
+					<div class="flex items-center justify-between py-1 border-b border-zinc-800/60">
 						<span class="text-zinc-500">Current Uptime</span>
 						<span class="text-zinc-300">{ s.Uptime }</span>
 					</div>
-					<div class="flex justify-between py-1">
-						<span class="text-zinc-500">Created</span>
+					<div class="flex items-center justify-between py-1">
+						<span class="text-zinc-500">Registered</span>
 						<span class="text-zinc-400">{ s.CreatedAt.Format("2006-01-02 15:04:05 UTC") }</span>
 					</div>
 				</div>

@@ -2,7 +2,7 @@
 
 # ⚡ BotKeep
 
-### High-Performance, Single-Binary DevOps Server Management Dashboard
+### Enterprise Multi-Protocol DevOps Fleet Management & Observability Dashboard
 
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![HTMX](https://img.shields.io/badge/HTMX-2.0.4-336699?style=flat&logo=htmx)](https://htmx.org)
@@ -11,6 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Single Binary](https://img.shields.io/badge/Binary-~12MB_Standalone-emerald)](https://github.com/sky-ruler/botkeep)
 [![CGO Free](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-blue)](https://github.com/sky-ruler/botkeep)
+[![Prometheus Ready](https://img.shields.io/badge/Metrics-Prometheus_OpenMetrics-orange)](https://github.com/sky-ruler/botkeep)
 
 <p align="center">
   <b>Bypass JavaScript SPA bloat.</b> BotKeep delivers an ultra-fast, single-executable DevOps fleet dashboard combining <b>Go</b>, <b>HTMX</b>, <b>templ</b>, and <b>Tailwind CSS</b> with embedded pure-Go SQLite.
@@ -26,11 +27,14 @@
 
 > 📘 **Want the complete breakdown? Read [BotKeep Explained: From Beginner to DevOps Pro](docs/EXPLAINED.md).**
 
-Think of BotKeep as a **24/7 personal doctor for your websites and servers**:
-- **Checks the Pulse**: Every 15 seconds, it pings your web apps and APIs to make sure they are healthy.
-- **Measures Speed**: Tells you exactly how fast they respond in milliseconds.
-- **Tracks Reliability (SLA)**: Calculates your real uptime percentage over time.
-- **Zero Bloat / Zero Setup**: No separate database (MySQL/Postgres) and no Node.js needed. It is a single, self-contained executable file that runs in under 4 milliseconds.
+Think of BotKeep as a **24/7 personal doctor for your websites, databases, and microservices**:
+- **Checks the Pulse**: Every 15 seconds, it pings your web apps and checks your database ports to make sure they are healthy.
+- **Inspects Security**: Intercepts HTTPS peer certificates and tracks days remaining before SSL expiration.
+- **Measures Speed**: Tells you exactly how fast they respond in sub-millisecond precision.
+- **Tracks Reliability (SLA)**: Calculates your rolling uptime compliance percentage over time.
+- **Integrates Everywhere**: Includes native Prometheus `/metrics/prometheus` scraping and 1-click JSON configuration backups.
+- **Works on Any Screen**: 100% responsive layout with mobile drawer navigation, responsive grids, and scrollable data tables.
+- **Zero Bloat / Zero Setup**: No separate database (MySQL/Postgres) and no Node.js needed. A single, self-contained executable file that starts in under 4 milliseconds.
 
 ---
 
@@ -40,26 +44,26 @@ BotKeep follows a strict **Linear / Vercel** dark mode design language (`bg-zinc
 
 ```
 +---------------------------------------------------------------------------------------------------+
-|  BotKeep v2.0   |  linux/amd64 / edge-node-01  [Node Engine]                 [Seed Demo Fleet]    |
+|  BotKeep v2.0   |  linux/amd64 / edge-node-01  [Active Engine]           [Prometheus] [Export JSON] |
 +-----------------+---------------------------------------------------------------------------------+
 |  [>] Fleet      |  +-------------+  +-------------+  +-------------+  +-------------+             |
 |  [*] Metrics    |  | Capacity    |  | Avg Latency |  | Fleet SLA   |  | Heap Memory |             |
 |  [_] Telemetry  |  | 5 / 5       |  | 32.4ms      |  | 99.8%       |  | 14.2 MB     |             |
 |                 |  +-------------+  +-------------+  +-------------+  +-------------+             |
 |  Cluster Status |                                                                                 |
-|  (*) Healthy    |  [Search Nodes...          ] [Status: All v] [Region: All v]  [+ Deploy Node  ] |
+|  (*) Healthy    |  [Search Targets...        ] [Status: All v] [Region: All v]  [+ Deploy Target] |
 |                 |  +----------------------------------------------------------------------------+ |
-|  Go Runtime     |  | Node / Instance     | Driver   | Status   | Latency & SLA   | Actions      | |
-|  Single-Binary  |  | api.github.com      | HTTP     | (o) Live | 32.4ms [||||||] | [Ping][Stop] | |
-|                 |  | auth-service-01     | Demo     | (o) Live | 24.8ms [||||||] | [Ping][Stop] | |
-|                 |  | worker-queue-node   | Demo     | (x) Stop | 0.0ms  [......] | [Ping][Start]| |
+|  Go Runtime     |  | Node / Target       | Driver & Protocol | Status   | Latency & SLA | Actions   | |
+|  Single-Binary  |  | cloudflare-cdn-edge | HTTP [HTTPS][SSL] | (o) Live | 39.4ms [||||] | [Ping]... | |
+|                 |  | postgres-cluster-pri| TCP  [TCP]         | (o) Live | 1.2ms  [||||] | [Ping]... | |
+|                 |  | github-api-gateway  | HTTP [HTTPS][SSL] | (o) Live | 65.1ms [||||] | [Ping]... | |
 |                 |  +----------------------------------------------------------------------------+ |
 |                 |                                                                                 |
 |                 |  Live Orchestration Logs [(*) Streaming]                          [Clear Buffer]| |
 |                 |  +----------------------------------------------------------------------------+ |
-|                 |  | 03:04:12 [PROBE] [api.github.com] HTTP 200 OK (32.4ms) - SLA: 100.0%       | |
+|                 |  | 03:04:12 [PROBE] [github-api-gateway] HTTP 200 OK (65.1ms) - SLA: 100.0%   | |
 |                 |  | 03:04:28 [INFO]  WAL auto-checkpoint executed (zero lock contention)       | |
-|                 |  | 03:04:55 [DEPLOY][api.github.com] Provisioned (Driver: http)               | |
+|                 |  | 03:04:55 [DEPLOY][postgres-cluster-pri] TCP port 5432 verified reachable   | |
 |                 |  +----------------------------------------------------------------------------+ |
 +-----------------+---------------------------------------------------------------------------------+
 ```
@@ -78,6 +82,7 @@ Modern DevOps dashboards often ship with hundreds of megabytes of client-side no
 | **External Dependencies** | Node.js, npm, Webpack/Vite runtime | **Zero (Embeds CSS, JS, & SQLite)** |
 | **Interactivity Model** | Client Virtual DOM re-renders | **HTMX Targeted Server DOM Swaps** |
 | **Type Safety** | TypeScript (compile-time only) | **Go + `a-h/templ` (Type-safe HTML)** |
+| **Multi-Screen Support** | Often desktop-only or cramped | **100% Responsive (Mobile drawer to 4K)** |
 
 ---
 
@@ -87,19 +92,20 @@ BotKeep bypasses the SPA paradigm using **HTMX** and **a-h/templ**. All static a
 
 ```mermaid
 flowchart TD
-    subgraph Browser[Client Browser]
+    subgraph Browser[Client Browser / Mobile / Desktop]
         A[HTML DOM Shell] -->|HTMX Partial Swaps| B(Chi HTTP Router)
         L[Live Logs Terminal] <-->|Polls Every 4s| B
         M[Cluster Metrics Grid] <-->|Polls Every 5s| B
-        E[Error Toast Listener] <--|HTMX Error Events| B
+        P[Prometheus Scraper] -->|GET /metrics/prometheus| B
     end
 
     subgraph Binary[BotKeep Single Executable]
         B --> C[HTTP Handlers]
-        B --> MON[Background Health Prober Engine]
+        B --> MON[Multi-Protocol Prober Engine]
         C --> D[templ Views Engine]
         C --> S[(Embedded SQLite WAL)]
-        MON -->|Concurrent HTTP/TCP Probing| S
+        MON -->|Concurrent HTTP/HTTPS & TCP Probing| S
+        MON -->|Async Incident Alerts| W[Webhook Dispatcher]
         D -->|Type-Safe HTML Partials| B
         FS[Embedded Static Assets] -->|Zero External Static Deps| B
     end
@@ -110,16 +116,25 @@ flowchart TD
 ## ✨ Key Features
 
 - **⚡ Instant Single-Binary Launch**: Zero external database setup, Node.js runtime, or Docker requirements to run. Single ~12 MB self-contained binary.
-- **📡 Active HTTP & API Health Probing**: Pluggable driver engine (`http`, `system`, `demo`) that continuously probes endpoints in the background, measuring sub-millisecond precision latency and HTTP status codes.
-- **📊 Rolling Uptime SLA Tracking**: Real-time SLA % calculation with visual spark dots and history inspection for auditing incident response.
-- **⚡ Instant On-Demand "Ping Now" Checks**: Click the **Ping** action on any node to fire an instant HTTP probe and update row telemetry via targeted HTMX swaps.
+- **📡 Multi-Protocol Health Probing**:
+  - **HTTP & HTTPS**: Real HTTP requests, status code validation, and automatic TLS peer certificate extraction.
+  - **TCP Socket**: Direct port connectivity prober for databases (PostgreSQL, MySQL, Redis, SSH, Kafka).
+  - **Simulated Node**: Organic jitter simulation for sandbox testing.
+- **🔒 TLS / SSL Certificate Expiry Auditing**: Intercepts `resp.TLS.PeerCertificates` and tracks days remaining until expiration (`ssl_expiry_days`) directly in the UI and Prometheus metrics.
+- **📊 Native Prometheus / OpenMetrics Exposition**: Native `/metrics/prometheus` endpoint exposing target status, latency, SLA, SSL days, and Go runtime memory/goroutines.
+- **💾 Fleet Configuration JSON Backup**: 1-click `/api/fleet/export` endpoint to download complete fleet definitions as an indented JSON backup file.
+- **🚨 Incident Webhook Alerting**: Configurable `BOTKEEP_WEBHOOK_URL` to dispatch async JSON notifications on outages (`INCIDENT_DOWN`) and recoveries (`INCIDENT_RESOLVED`).
+- **📱 100% Responsive for All Screen Sizes**:
+  - Dedicated mobile drawer navigation (`md:hidden`) with blurred backdrop.
+  - Adaptive 1-col to 4-col metrics grids.
+  - Fluid slide-over telemetry inspector drawer.
+  - Horizontal scroll protection for high-density tables.
+- **⚡ Instant On-Demand "Ping Now" Checks**: Click the **Ping** action on any node to fire an instant HTTP/TCP probe and update row telemetry via targeted HTMX swaps.
 - **🔄 Localized HTMX Swaps**: Triggering **Start**, **Stop**, or **Restart** updates *only* that specific table row with targeted spinners (`hx-indicator`) and disables clicked elements (`hx-disabled-elt`) to prevent double-clicks.
 - **🔍 Instant Fleet Search & Multi-Filter**: Search nodes by name, ID, IP, or endpoint URL in real time with debounced HTMX requests (`delay:250ms`), filtered by status and availability zone.
-- **📂 Deep Node Telemetry Drawer**: Click on any node to slide open a dedicated telemetry panel showing CPU, RAM, Latency, and SLA gauges, probe history log, and node audit trails.
+- **📂 Deep Node Telemetry Drawer**: Click on any node to slide open a dedicated telemetry panel showing CPU, RAM, Latency, SLA gauges, TLS expiry, and node audit trails.
 - **🛡️ Non-Intrusive Error Toasts**: Network hiccups or 500 exceptions trigger toast notifications through client-side HTMX event listeners without corrupting the DOM.
 - **📈 Real Go Host Telemetry**: Live Go runtime metrics including goroutine count, allocated heap memory, garbage collection passes, OS architecture, and thread allocations.
-- **🌐 Real DNS Resolution & Rolling SLA**: Zero hardcoded metrics. Real HTTP targets resolve public IP addresses via DNS (`net.LookupIP`), with SLA calculated from live probe history.
-- **🪹 Polished Empty State**: Empty database instances render an illustrative empty state with 1-click **Deploy Demo Fleet** action.
 
 ---
 
@@ -162,84 +177,32 @@ make run
 
 ## ⚙️ Configuration
 
-BotKeep is configured via command-line flags or environment variables:
+BotKeep is configured via command-line flags and environment variables:
 
-| Flag | Environment Variable | Default | Description |
+| Flag | Env Variable | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `-port` | `PORT` | `8080` | HTTP listening port |
-| `-db` | `DB_PATH` | `botkeep.db` | SQLite database file location |
-| `-interval` | `PROBE_INTERVAL` | `15s` | Fleet health check probe sweep interval |
-| `-seed` | `SEED_FLEET` | `false` | Force re-seed default demo servers on startup |
-| `-version`| — | — | Print version and runtime details and exit |
-
-Example:
-```bash
-./botkeep -port 3000 -db /var/data/fleet.db -interval 10s
-```
-
+| `-port` | `PORT` | `8080` | TCP port for HTTP server |
+| `-db` | `BOTKEEP_DB_PATH` | `botkeep.db` | Path to embedded SQLite database |
+| `-interval` | `BOTKEEP_PROBE_INTERVAL` | `15s` | Interval between background fleet probe cycles |
+| — | `BOTKEEP_WEBHOOK_URL` | `""` | Optional HTTP URL for downtime incident webhooks |
 
 ---
 
-## 🧪 Testing & Validation
+## 📊 Prometheus Scrape Configuration
 
-BotKeep includes unit and integration tests covering the database layer, state machine transitions, search filters, and HTTP handlers:
+To scrape BotKeep from your `prometheus.yml`:
 
-```bash
-# Run unit & integration test suite
-go test -v -race ./...
-
-# Verify code formatting
-go fmt ./...
-templ fmt .
+```yaml
+scrape_configs:
+  - job_name: "botkeep"
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["localhost:8080"]
+    metrics_path: "/metrics/prometheus"
 ```
 
 ---
 
-## 📦 Project Structure
+## 📜 License
 
-```
-BotKeep/
-├── cmd/server/main.go            # Entrypoint, Chi router, static asset server, graceful shutdown
-├── internal/
-│   ├── handlers/                 # HTTP handlers returning compiled templ components
-│   │   ├── handlers.go
-│   │   └── handlers_test.go      # HTTP router & HTMX integration tests
-│   ├── models/                   # SQLite schema, queries, metrics & state transitions
-│   │   ├── schema.sql            # Embedded SQLite schema
-│   │   ├── models.go
-│   │   └── models_test.go        # Database unit test suite
-│   └── monitor/                  # Concurrent health prober engine & SLA tracking
-│       ├── monitor.go
-│       └── monitor_test.go       # Mock HTTP & driver prober test suite
-├── views/
-│   ├── components/               # Atomic templ components
-│   │   ├── badge.templ           # Status badges (Active, Stopped, Deploying)
-│   │   ├── button.templ          # Primary, Secondary & HTMX Action buttons
-│   │   ├── card.templ            # Telemetry metric cards & gauges
-│   │   ├── empty.templ           # Empty state with SVG illustration & CTA
-│   │   ├── icons.templ           # Lucide SVG atomic components
-│   │   ├── skeleton.templ        # Localized loading skeleton loaders
-│   │   └── toast.templ           # Floating toast notification component
-│   ├── layouts/
-│   │   └── base.templ            # Base HTML shell, navigation sidebar & HTMX error handlers
-│   └── pages/
-│       ├── dashboard.templ       # Assembled overview grid, server table & live logs
-│       └── server_detail.templ   # Node inspector slide-over drawer
-├── static/
-│   ├── css/                      # Tailwind input.css and minified output.css
-│   └── js/                       # Standalone HTMX 2.0.4 script
-├── .github/workflows/ci.yml      # GitHub Actions CI matrix & cross-compilation
-├── Dockerfile                    # Multi-stage ~15MB distroless/alpine container
-├── docker-compose.yml            # Production compose stack
-├── Makefile                      # Standardized make targets
-├── build.ps1                     # Native Windows PowerShell automation
-├── go.mod & go.sum               # Go modules
-├── package.json                  # Tailwind CLI compiler setup
-└── tailwind.config.js            # Design tokens & color palette
-```
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.

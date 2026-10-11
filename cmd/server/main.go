@@ -23,8 +23,8 @@ import (
 )
 
 var (
-	version = "1.2.0"
-	commit  = "edge"
+	version = "2.0.0"
+	commit  = "release"
 )
 
 func main() {
@@ -123,6 +123,8 @@ func main() {
 	r.Post("/servers/{id}/ping", h.PingServer)
 	r.Post("/servers/seed", h.SeedFleet)
 	r.Get("/metrics", h.GetMetrics)
+	r.Get("/metrics/prometheus", h.PrometheusMetrics)
+	r.Get("/api/fleet/export", h.ExportFleet)
 	r.Get("/logs", h.GetLogs)
 	r.Post("/logs/clear", h.ClearLogs)
 

@@ -1,11 +1,15 @@
 package monitor
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -13,10 +17,11 @@ import (
 )
 
 type Engine struct {
-	db       *models.DB
-	client   *http.Client
-	interval time.Duration
-	mu       sync.Mutex
+	db         *models.DB
+	client     *http.Client
+	interval   time.Duration
+	webhookURL string
+	mu         sync.Mutex
 }
 
 func NewEngine(db *models.DB, interval time.Duration) *Engine {
@@ -38,15 +43,16 @@ func NewEngine(db *models.DB, interval time.Duration) *Engine {
 	}
 
 	return &Engine{
-		db:       db,
-		client:   client,
-		interval: interval,
+		db:         db,
+		client:     client,
+		interval:   interval,
+		webhookURL: os.Getenv("BOTKEEP_WEBHOOK_URL"),
 	}
 }
 
 // Start launches the background prober loop until context cancellation.
 func (e *Engine) Start(ctx context.Context) {
-	log.Printf("[Monitor] Background health check prober started (polling every %v)", e.interval)
+	log.Printf("[Monitor] Background multi-protocol prober started (polling every %v)", e.interval)
 
 	// Immediate initial sweep
 	go e.runProbeSweep(ctx)
@@ -74,7 +80,7 @@ func (e *Engine) runProbeSweep(ctx context.Context) {
 
 	var wg sync.WaitGroup
 	for _, s := range servers {
-		if s.Driver == "http" || s.Driver == "demo" {
+		if s.Driver == "http" || s.Driver == "tcp" || s.Driver == "demo" {
 			wg.Add(1)
 			go func(srv models.Server) {
 				defer wg.Done()
@@ -85,7 +91,7 @@ func (e *Engine) runProbeSweep(ctx context.Context) {
 	wg.Wait()
 }
 
-// ProbeServer performs a health check probe against a single node.
+// ProbeServer performs a health check probe against a single node (HTTP, HTTPS, TCP, or Simulated).
 func (e *Engine) ProbeServer(ctx context.Context, s models.Server) error {
 	switch s.Driver {
 	case "http":
@@ -96,30 +102,72 @@ func (e *Engine) ProbeServer(ctx context.Context, s models.Server) error {
 		req, err := http.NewRequestWithContext(ctx, "GET", s.EndpointURL, nil)
 		if err != nil {
 			_ = e.db.RecordProbe(s.ID, 0, 0, false, fmt.Sprintf("Invalid URL: %v", err))
+			e.dispatchAlert(s, false, err.Error())
 			return err
 		}
-		req.Header.Set("User-Agent", "BotKeep-Fleet-Prober/1.2")
+		req.Header.Set("User-Agent", "BotKeep-Fleet-Prober/2.0")
 
 		start := time.Now()
 		resp, err := e.client.Do(req)
 		latency := float64(time.Since(start).Microseconds()) / 1000.0
+		if latency <= 0 {
+			latency = 0.1
+		}
 
 		if err != nil {
 			_ = e.db.RecordProbe(s.ID, latency, 0, false, err.Error())
+			e.dispatchAlert(s, false, err.Error())
 			return err
 		}
 		defer resp.Body.Close()
+
+		// Extract TLS certificate expiration if HTTPS
+		if resp.TLS != nil && len(resp.TLS.PeerCertificates) > 0 {
+			cert := resp.TLS.PeerCertificates[0]
+			daysRemaining := int(time.Until(cert.NotAfter).Hours() / 24)
+			_ = e.db.UpdateSSLExpiry(s.ID, daysRemaining)
+		}
 
 		success := resp.StatusCode >= 200 && resp.StatusCode < 400
 		errMsg := ""
 		if !success {
 			errMsg = fmt.Sprintf("HTTP status %d", resp.StatusCode)
+			e.dispatchAlert(s, false, errMsg)
+		} else if s.Status == "stopped" {
+			e.dispatchAlert(s, true, fmt.Sprintf("HTTP %d OK", resp.StatusCode))
 		}
 
 		return e.db.RecordProbe(s.ID, latency, resp.StatusCode, success, errMsg)
 
+	case "tcp":
+		if s.EndpointURL == "" {
+			return nil
+		}
+
+		start := time.Now()
+		var d net.Dialer
+		d.Timeout = 4 * time.Second
+		conn, err := d.DialContext(ctx, "tcp", s.EndpointURL)
+		latency := float64(time.Since(start).Microseconds()) / 1000.0
+		if latency <= 0 {
+			latency = 0.1
+		}
+
+		if err != nil {
+			_ = e.db.RecordProbe(s.ID, latency, 0, false, err.Error())
+			e.dispatchAlert(s, false, err.Error())
+			return err
+		}
+		_ = conn.Close()
+
+		if s.Status == "stopped" {
+			e.dispatchAlert(s, true, "TCP socket connected")
+		}
+
+		return e.db.RecordProbe(s.ID, latency, 200, true, "")
+
 	case "demo":
-		// Light jitter for demo nodes
+		// Realistic jitter for simulated demo nodes
 		lat := s.LatencyMS
 		if s.Status == "active" {
 			lat += (float64(time.Now().UnixNano()%20) - 10) / 10.0
@@ -144,4 +192,52 @@ func (e *Engine) ProbeNow(ctx context.Context, serverID string) (*models.Server,
 
 	_ = e.ProbeServer(ctx, *s)
 	return e.db.GetServerByID(serverID)
+}
+
+// dispatchAlert logs incident events and dispatches external webhooks if configured.
+func (e *Engine) dispatchAlert(s models.Server, recovered bool, reason string) {
+	level := "ERROR"
+	msg := fmt.Sprintf("[%s] INCIDENT: Health check probe failed (%s)", s.Name, reason)
+	if recovered {
+		level = "INFO"
+		msg = fmt.Sprintf("[%s] RECOVERY: Service operational (%s)", s.Name, reason)
+	}
+
+	_ = e.db.AddLog(s.ID, level, msg)
+
+	if e.webhookURL == "" {
+		return
+	}
+
+	// Dispatch asynchronous webhook
+	go func(targetURL string) {
+		payload := map[string]any{
+			"event":     "node_alert",
+			"server_id": s.ID,
+			"name":      s.Name,
+			"driver":    s.Driver,
+			"endpoint":  s.EndpointURL,
+			"status":    s.Status,
+			"recovered": recovered,
+			"reason":    reason,
+			"timestamp": time.Now().Format(time.RFC3339),
+		}
+		body, err := json.Marshal(payload)
+		if err != nil {
+			return
+		}
+
+		req, err := http.NewRequest("POST", targetURL, bytes.NewBuffer(body))
+		if err != nil {
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("User-Agent", "BotKeep-Alert-Webhook/2.0")
+
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Do(req)
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+	}(e.webhookURL)
 }

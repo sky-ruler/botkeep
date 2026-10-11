@@ -17,9 +17,11 @@ Rather than bundling Node.js runtimes, Webpack asset pipelines, multi-megabyte J
 |                               BotKeep Single Executable (~12 MB)                        |
 |                                                                                         |
 |   +-----------------------+   +------------------------+   +------------------------+   |
-|   | Chi High-Speed Router |   | Active Prober Engine   |   | Type-Safe templ Engine |   |
-|   |  - HTTP Handlers      |   |  - HTTP/TLS Handshake  |   |  - Atomic Partials     |   |
-|   |  - HTMX Event Swaps   |   |  - Sub-ms Latency SLA  |   |  - Linear Dark Shell   |   |
+|   | Chi High-Speed Router |   | Multi-Protocol Prober  |   | Type-Safe templ Engine |   |
+|   |  - HTTP Handlers      |   |  - HTTP/HTTPS Probes   |   |  - Atomic Partials     |   |
+|   |  - HTMX Event Swaps   |   |  - TLS Expiry Audit    |   |  - Mobile Drawer Shell |   |
+|   |  - Prometheus Scraper |   |  - TCP Socket Prober   |   |  - Linear Dark Theme   |   |
+|   |  - JSON Fleet Backup  |   |  - Webhook Dispatcher  |   |  - 100% Responsive     |   |
 |   +-----------+-----------+   +-----------+------------+   +-----------+------------+   |
 |               |                           |                            |                |
 |   +-----------v---------------------------v----------------------------v------------+   |
@@ -80,74 +82,87 @@ BotKeep uses `modernc.org/sqlite`, a 100% pure Go SQLite transpilation. This pro
 
 ---
 
-## 4. Background Fleet Prober Engine (`internal/monitor`)
+## 4. Multi-Protocol Fleet Prober Engine (`internal/monitor`)
 
-The Prober Engine continuously audits configured fleet nodes and HTTP endpoints:
+The Prober Engine continuously audits configured fleet nodes across multiple protocols:
 
 ```go
 type Engine struct {
-    db       *models.DB
-    client   *http.Client
-    interval time.Duration
-    mu       sync.Mutex
+    db         *models.DB
+    client     *http.Client
+    interval   time.Duration
+    webhookURL string
+    mu         sync.Mutex
 }
 ```
 
-### Worker Model
-1. **Sweep Loop**: Runs on a configurable ticker (default: 15 seconds, controlled by `-interval` flag).
-2. **Concurrent Goroutines**: Spawns concurrent probe workers across nodes with `sync.WaitGroup` to avoid serialization delays.
-3. **HTTP Probe Execution**:
-   - Sends non-blocking HTTP requests with a strict 5-second timeout and custom User-Agent.
-   - Measures round-trip latency with microsecond accuracy:
-     ```go
-     latency := float64(time.Since(start).Microseconds()) / 1000.0
-     ```
-   - Records latency, status code, success state, and timestamp into `probe_history`.
-4. **Rolling SLA Calculation**:
-   - Automatically computes rolling uptime SLA across the recent probe history window:
-     $$\text{SLA} = \left(\frac{\text{Successful Probes}}{\text{Total Probes}}\right) \times 100\%$$
-   - State transition alerts are pushed directly to the `logs` table.
-5. **Instant On-Demand Probe ("Ping Now")**:
-   - The `POST /servers/{id}/ping` endpoint calls `engine.ProbeNow(ctx, id)` to execute an immediate probe out of band, returning an updated row partial to HTMX.
+### Supported Protocol Drivers
+
+1. **HTTP / HTTPS Driver (`driver == "http"`)**:
+   - Sends non-blocking HTTP GET requests with custom `BotKeep-Fleet-Prober/2.0` User-Agent.
+   - Measures roundtrip latency with microsecond accuracy.
+   - **Live TLS/SSL Certificate Inspection**: Automatically intercepts `resp.TLS.PeerCertificates[0].NotAfter` to calculate and store the exact days remaining until SSL certificate expiration (`ssl_expiry_days`).
+2. **TCP Socket Driver (`driver == "tcp"`)**:
+   - Uses `net.Dialer` with a strict 4-second timeout to check direct TCP connectivity to databases, caches, and daemon ports (e.g. PostgreSQL `host:5432`, Redis `host:6379`, SSH `host:22`, Kafka `host:9092`).
+   - Measures raw TCP handshake latency without requiring HTTP protocol overhead.
+3. **Simulated Demo Driver (`driver == "demo"`)**:
+   - Provides organic jitter for realistic local testing without external network dependencies.
+
+### Automated Incident Webhook Alerting
+When `BOTKEEP_WEBHOOK_URL` is set, the prober dispatches asynchronous non-blocking JSON webhooks upon downtime incidents (`INCIDENT_DOWN`) and recovery transitions (`INCIDENT_RESOLVED`).
 
 ---
 
-## 5. Server-Driven UI with HTMX & `a-h/templ`
+## 5. Enterprise Integrations & Open Standards
+
+### Prometheus / OpenMetrics Exposition (`/metrics/prometheus`)
+BotKeep includes a native Prometheus scraper endpoint. Standard monitoring systems like Prometheus, Grafana Agent, or Datadog can scrape `/metrics/prometheus` directly to ingest:
+- Registered targets and operational counts (`botkeep_servers_total`, `botkeep_servers_active`).
+- Per-node status gauges (`botkeep_node_up`), latencies (`botkeep_node_latency_ms`), and uptime SLAs (`botkeep_node_uptime_pct`).
+- SSL certificate expiration remaining days (`botkeep_node_ssl_expiry_days`).
+- Real-time Go engine heap allocation (`botkeep_host_allocated_mb`), goroutines, and GC cycles.
+
+### Fleet Configuration JSON Export (`/api/fleet/export`)
+Operators can download an instantaneous backup of the entire fleet registry, drivers, endpoints, regions, and SLA history as a clean JSON document.
+
+---
+
+## 6. Server-Driven UI with HTMX & `a-h/templ`
 
 BotKeep completely rejects the complexity of client-side state hydration, Redux stores, and virtual DOM diffing:
 
 ```
-User Click ("Ping") ──> HTMX POST Request ──> Chi Router Handlers
-                                                    │
-                                                    ▼
-Client DOM Updated  <──  HTML Row Partial  <── templ Compilation
+User Action (Ping / Deploy) ──> HTMX POST Request ──> Chi Router Handlers
+                                                            │
+                                                            ▼
+Client DOM Updated          <──  HTML Row Partial  <── templ Compilation
 ```
 
 ### Type Safety via `templ`
 Every component is written in `.templ` syntax and compiled into pure Go code:
 - **Zero Runtime Reflection**: HTML is generated via high-performance Go string buffers.
 - **Compile-Time Type Checking**: Passing invalid structs or missing parameters results in a compile error before binary generation.
-- **Targeted Swaps**: Buttons use `hx-target="#server-row-{id}"` and `hx-swap="outerHTML"`, so only that individual table row is replaced.
+- **Targeted Swaps**: Buttons use `hx-target="#server-row-{id}"` and `hx-swap="outerHTML"`, replacing only that individual row without refreshing the rest of the page.
 
 ---
 
-## 6. Linear / Vercel Dark Mode Design System
+## 7. 100% Responsive Viewport Architecture
 
-BotKeep uses a curated dark mode palette tailored for DevOps dashboards:
+BotKeep is optimized to deliver a state-of-the-art experience across mobile phones (360px+), tablets (768px), and 4K desktop workstations:
 
-| Token | Class | Description |
-| :--- | :--- | :--- |
-| **Canvas** | `bg-zinc-950` | Primary background canvas |
-| **Surface** | `bg-zinc-900/60` | Card and drawer surfaces |
-| **Borders** | `border-zinc-800` | Subtle hairline dividers |
-| **Active Accent** | `text-emerald-400` / `bg-emerald-500/10` | Running instances & healthy SLA |
-| **HTTP Accent** | `text-cyan-400` / `bg-cyan-500/10` | HTTP probe driver & latency metrics |
-| **System Accent** | `text-purple-400` / `bg-purple-500/10` | IPC and daemon sockets |
-| **Warning/Error** | `text-rose-400` / `bg-rose-500/10` | Outages and connection failures |
+1. **Mobile Drawer Navigation (`md:hidden`)**:
+   - On screens under 768px, the desktop navigation sidebar is replaced by an overlay drawer triggered by a header hamburger menu button.
+   - Includes a blurred backdrop with tap-to-dismiss behavior.
+2. **Adaptive Metrics Grid**:
+   - Smoothly reorganizes from a 4-column layout on wide screens to 2 columns on tablets, and single-column cards on mobile viewports.
+3. **Fluid Node Inspector Drawer**:
+   - Slides smoothly over from the right side (`sm:max-w-md md:max-w-lg w-full`), featuring a responsive 2x2 gauge grid on mobile.
+4. **Scrollable High-Density Data Tables**:
+   - The fleet table is wrapped in an overflow container (`overflow-x-auto`) to preserve complete metrics fidelity and prevent horizontal clipping on small screens.
 
 ---
 
-## 7. Multi-Platform CI/CD Pipeline
+## 8. Multi-Platform CI/CD Pipeline
 
 The GitHub Actions workflow (`.github/workflows/ci.yml`) compiles and tests every commit across 6 parallel jobs:
 
@@ -158,5 +173,3 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) compiles and tests ever
    - `darwin-arm64` (Apple Silicon M-series)
    - `darwin-amd64` (Intel macOS)
    - `windows-amd64` (Windows x86_64)
-
-Each artifact is compiled with `-ldflags "-s -w"` to strip debug symbols, resulting in lightweight, distribution-ready single binaries.

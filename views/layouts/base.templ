@@ -23,8 +23,48 @@ templ Base(title string) {
 			<!-- Toast Notification Root Container -->
 			<div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-auto"></div>
 
-			<!-- Left Nav Sidebar -->
-			<aside class="w-64 flex-shrink-0 bg-zinc-900/60 border-r border-zinc-800 flex flex-col justify-between">
+			<!-- Mobile Nav Overlay & Drawer -->
+			<div id="mobile-nav-backdrop" class="fixed inset-0 z-40 bg-zinc-950/80 backdrop-blur-sm hidden md:hidden" onclick="document.getElementById('mobile-nav-backdrop').classList.add('hidden'); document.getElementById('mobile-nav').classList.add('-translate-x-full');"></div>
+			<aside id="mobile-nav" class="fixed inset-y-0 left-0 z-50 w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col justify-between transform -translate-x-full transition-transform duration-200 md:hidden">
+				<div>
+					<div class="h-16 flex items-center justify-between px-6 border-b border-zinc-800/80">
+						<div class="flex items-center gap-3">
+							<div class="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-sm shadow-sm">
+								@components.IconLayers("w-4 h-4 text-zinc-950")
+							</div>
+							<span class="text-sm font-semibold tracking-tight text-zinc-100">BotKeep</span>
+						</div>
+						<button
+							type="button"
+							class="p-1 text-zinc-400 hover:text-zinc-100"
+							onclick="document.getElementById('mobile-nav-backdrop').classList.add('hidden'); document.getElementById('mobile-nav').classList.add('-translate-x-full');"
+						>
+							@components.IconX("w-5 h-5")
+						</button>
+					</div>
+					<nav class="px-3 py-4 space-y-1">
+						<a href="/" class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md bg-zinc-800/90 text-zinc-100 border border-zinc-700/60 shadow-sm">
+							@components.IconServer("w-4 h-4 text-zinc-300")
+							<span>Fleet Overview</span>
+						</a>
+						<a href="#metrics" class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40">
+							@components.IconActivity("w-4 h-4 text-zinc-400")
+							<span>Cluster Metrics</span>
+						</a>
+						<a href="#logs" class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40">
+							@components.IconTerminal("w-4 h-4 text-zinc-400")
+							<span>Live Telemetry</span>
+						</a>
+					</nav>
+				</div>
+				<div class="p-4 border-t border-zinc-800/80 bg-zinc-900/30 text-[10px] text-zinc-400 font-mono">
+					<div>Engine: Single-Binary</div>
+					<div class="mt-1">{ GetGoVersion() }</div>
+				</div>
+			</aside>
+
+			<!-- Desktop Nav Sidebar (md and larger) -->
+			<aside class="hidden md:flex w-64 flex-shrink-0 bg-zinc-900/60 border-r border-zinc-800 flex-col justify-between">
 				<div>
 					<!-- App Brand -->
 					<div class="h-16 flex items-center px-6 border-b border-zinc-800/80 gap-3">
@@ -85,42 +125,63 @@ templ Base(title string) {
 			<!-- Main Application Viewport -->
 			<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 				<!-- Top Nav Header -->
-				<header class="h-16 flex-shrink-0 bg-zinc-900/40 border-b border-zinc-800 flex items-center justify-between px-8 backdrop-blur-md">
-					<div class="flex items-center gap-4">
-						<div class="flex items-center gap-2 text-xs text-zinc-400 font-mono">
-							<span>{ GetPlatformInfo() }</span>
-							<span>/</span>
-							<span class="text-zinc-200 font-medium">{ GetHostInfo() }</span>
-						</div>
-						@components.GenericBadge("Node Engine", "info")
-					</div>
-
-					<div class="flex items-center gap-3">
-						<!-- Localized / Global HTMX Activity Indicator -->
-						<div id="global-indicator" class="htmx-indicator items-center gap-2 text-xs text-zinc-400">
-							@components.IconSpinner("w-3.5 h-3.5 text-zinc-300")
-							<span class="font-mono text-[11px]">Syncing...</span>
-						</div>
-
-						<!-- Quick Seed / Reset Fleet Button -->
+				<header class="h-16 flex-shrink-0 bg-zinc-900/40 border-b border-zinc-800 flex items-center justify-between px-4 sm:px-8 backdrop-blur-md">
+					<div class="flex items-center gap-3 sm:gap-4 min-w-0">
+						<!-- Mobile Menu Trigger -->
 						<button
 							type="button"
-							hx-post="/servers/seed"
-							hx-target="#server-table-container"
-							hx-swap="innerHTML"
-							hx-indicator="#global-indicator"
-							hx-disabled-elt="this"
-							class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors cursor-pointer"
-							title="Seed demo server fleet"
+							class="p-2 -ml-2 text-zinc-400 hover:text-zinc-100 rounded-md hover:bg-zinc-800 md:hidden cursor-pointer"
+							onclick="document.getElementById('mobile-nav-backdrop').classList.remove('hidden'); document.getElementById('mobile-nav').classList.remove('-translate-x-full');"
+							title="Open navigation menu"
 						>
-							@components.IconRefresh("w-3.5 h-3.5")
-							<span>Seed Demo Fleet</span>
+							@components.IconMenu("w-5 h-5")
 						</button>
+
+						<div class="flex items-center gap-2 text-xs text-zinc-400 font-mono truncate">
+							<span class="hidden sm:inline">{ GetPlatformInfo() }</span>
+							<span class="hidden sm:inline">/</span>
+							<span class="text-zinc-200 font-medium truncate">{ GetHostInfo() }</span>
+						</div>
+						<span class="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+							<span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+							Active Engine
+						</span>
+					</div>
+
+					<div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+						<!-- Prometheus OpenMetrics Endpoint -->
+						<a
+							href="/metrics/prometheus"
+							target="_blank"
+							rel="noopener noreferrer"
+							class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors shadow-sm"
+							title="View Prometheus / OpenMetrics scrape endpoint"
+						>
+							@components.IconBarChart("w-3.5 h-3.5 text-amber-400")
+							<span class="hidden sm:inline font-mono text-[11px]">Prometheus</span>
+						</a>
+
+						<!-- Export Fleet Configuration JSON -->
+						<a
+							href="/api/fleet/export"
+							download
+							class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors shadow-sm"
+							title="Export Fleet Configuration (JSON Backup)"
+						>
+							@components.IconDownload("w-3.5 h-3.5 text-cyan-400")
+							<span class="hidden sm:inline text-[11px]">Export JSON</span>
+						</a>
+
+						<!-- Localized / Global HTMX Activity Indicator -->
+						<div id="global-indicator" class="htmx-indicator items-center gap-1.5 text-xs text-zinc-400">
+							@components.IconSpinner("w-3.5 h-3.5 text-zinc-300")
+							<span class="hidden sm:inline font-mono text-[11px]">Syncing...</span>
+						</div>
 					</div>
 				</header>
 
 				<!-- Scrollable Main Content -->
-				<main class="flex-1 overflow-y-auto px-8 py-6 space-y-8 bg-zinc-950">
+				<main class="flex-1 overflow-y-auto px-4 sm:px-8 py-5 sm:py-6 space-y-6 sm:space-y-8 bg-zinc-950">
 					{ children... }
 				</main>
 			</div>

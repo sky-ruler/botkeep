@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -348,6 +350,97 @@ func (h *Handler) ClearLogs(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_ = pages.LogsStream(logs).Render(r.Context(), w)
+}
+
+// PrometheusMetrics exposes standard Prometheus / OpenMetrics scrape format.
+func (h *Handler) PrometheusMetrics(w http.ResponseWriter, r *http.Request) {
+	servers, err := h.db.GetAllServers()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to retrieve fleet: %v", err), http.StatusInternalServerError)
+		return
+	}
+	metrics, _ := h.db.GetMetrics()
+
+	var sb strings.Builder
+	sb.WriteString("# HELP botkeep_servers_total Total count of registered targets in fleet\n")
+	sb.WriteString("# TYPE botkeep_servers_total gauge\n")
+	sb.WriteString(fmt.Sprintf("botkeep_servers_total %d\n\n", len(servers)))
+
+	if metrics != nil {
+		sb.WriteString("# HELP botkeep_servers_active Count of operational targets in fleet\n")
+		sb.WriteString("# TYPE botkeep_servers_active gauge\n")
+		sb.WriteString(fmt.Sprintf("botkeep_servers_active %d\n\n", metrics.ActiveCount))
+	}
+
+	sb.WriteString("# HELP botkeep_node_up Operational status of the monitored target (1 = active/up, 0 = stopped/down)\n")
+	sb.WriteString("# TYPE botkeep_node_up gauge\n")
+	for _, s := range servers {
+		up := 0
+		if s.Status == "active" {
+			up = 1
+		}
+		sb.WriteString(fmt.Sprintf("botkeep_node_up{id=\"%s\",name=\"%s\",region=\"%s\",driver=\"%s\",protocol=\"%s\"} %d\n",
+			s.ID, s.Name, s.Region, s.Driver, s.Protocol, up))
+	}
+
+	sb.WriteString("\n# HELP botkeep_node_latency_ms Sub-millisecond roundtrip probe latency\n")
+	sb.WriteString("# TYPE botkeep_node_latency_ms gauge\n")
+	for _, s := range servers {
+		sb.WriteString(fmt.Sprintf("botkeep_node_latency_ms{id=\"%s\",name=\"%s\"} %.2f\n", s.ID, s.Name, s.LatencyMS))
+	}
+
+	sb.WriteString("\n# HELP botkeep_node_uptime_pct Rolling SLA compliance percentage\n")
+	sb.WriteString("# TYPE botkeep_node_uptime_pct gauge\n")
+	for _, s := range servers {
+		sb.WriteString(fmt.Sprintf("botkeep_node_uptime_pct{id=\"%s\",name=\"%s\"} %.2f\n", s.ID, s.Name, s.UptimePct))
+	}
+
+	sb.WriteString("\n# HELP botkeep_node_ssl_expiry_days Days until TLS/SSL certificate expiration\n")
+	sb.WriteString("# TYPE botkeep_node_ssl_expiry_days gauge\n")
+	for _, s := range servers {
+		if s.SSLExpiryDays >= 0 {
+			sb.WriteString(fmt.Sprintf("botkeep_node_ssl_expiry_days{id=\"%s\",name=\"%s\"} %d\n", s.ID, s.Name, s.SSLExpiryDays))
+		}
+	}
+
+	if metrics != nil {
+		sb.WriteString("\n# HELP botkeep_host_allocated_mb Heap memory allocated by the Go runtime engine in megabytes\n")
+		sb.WriteString("# TYPE botkeep_host_allocated_mb gauge\n")
+		sb.WriteString(fmt.Sprintf("botkeep_host_allocated_mb %.2f\n", metrics.Host.AllocatedMB))
+
+		sb.WriteString("\n# HELP botkeep_host_goroutines Count of active Go engine goroutines\n")
+		sb.WriteString("# TYPE botkeep_host_goroutines gauge\n")
+		sb.WriteString(fmt.Sprintf("botkeep_host_goroutines %d\n", metrics.Host.NumGoroutine))
+
+		sb.WriteString("\n# HELP botkeep_host_gc_cycles Total garbage collection passes performed\n")
+		sb.WriteString("# TYPE botkeep_host_gc_cycles counter\n")
+		sb.WriteString(fmt.Sprintf("botkeep_host_gc_cycles %d\n", metrics.Host.NumGC))
+	}
+
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(sb.String()))
+}
+
+// ExportFleet outputs the complete fleet registry as a JSON backup attachment.
+func (h *Handler) ExportFleet(w http.ResponseWriter, r *http.Request) {
+	servers, err := h.db.GetAllServers()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to retrieve fleet: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	data, err := json.MarshalIndent(servers, "", "  ")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal fleet backup: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	filename := fmt.Sprintf("botkeep-fleet-backup-%d.json", time.Now().Unix())
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
 }
 
 func isHTMX(r *http.Request) bool {

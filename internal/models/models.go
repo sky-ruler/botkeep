@@ -19,23 +19,25 @@ import (
 var schemaSQL string
 
 type Server struct {
-	ID           string       `json:"id"`
-	Name         string       `json:"name"`
-	IPAddress    string       `json:"ip_address"`
-	Region       string       `json:"region"`
-	Status       string       `json:"status"` // "active", "stopped", "deploying"
-	Driver       string       `json:"driver"` // "http", "system", "demo"
-	EndpointURL  string       `json:"endpoint_url"`
-	LatencyMS    float64      `json:"latency_ms"`
-	UptimePct    float64      `json:"uptime_pct"`
-	CPUUsage     float64      `json:"cpu_usage"`
-	MemoryUsage  float64      `json:"memory_usage"`
-	StorageUsage float64      `json:"storage_usage"`
-	Uptime       string       `json:"uptime"`
-	LastChecked  *time.Time   `json:"last_checked"`
-	CreatedAt    time.Time    `json:"created_at"`
-	UpdatedAt    time.Time    `json:"updated_at"`
-	ProbePoints  []ProbePoint `json:"probe_points,omitempty"`
+	ID            string       `json:"id"`
+	Name          string       `json:"name"`
+	IPAddress     string       `json:"ip_address"`
+	Region        string       `json:"region"`
+	Status        string       `json:"status"` // "active", "stopped", "deploying"
+	Driver        string       `json:"driver"` // "http", "tcp", "system", "demo"
+	EndpointURL   string       `json:"endpoint_url"`
+	Protocol      string       `json:"protocol"` // "HTTP", "HTTPS", "TCP"
+	SSLExpiryDays int          `json:"ssl_expiry_days"`
+	LatencyMS     float64      `json:"latency_ms"`
+	UptimePct     float64      `json:"uptime_pct"`
+	CPUUsage      float64      `json:"cpu_usage"`
+	MemoryUsage   float64      `json:"memory_usage"`
+	StorageUsage  float64      `json:"storage_usage"`
+	Uptime        string       `json:"uptime"`
+	LastChecked   *time.Time   `json:"last_checked"`
+	CreatedAt     time.Time    `json:"created_at"`
+	UpdatedAt     time.Time    `json:"updated_at"`
+	ProbePoints   []ProbePoint `json:"probe_points,omitempty"`
 }
 
 type ProbePoint struct {
@@ -110,6 +112,8 @@ func NewDB(dbPath string) (*DB, error) {
 		"ALTER TABLE servers ADD COLUMN latency_ms REAL NOT NULL DEFAULT 0.0;",
 		"ALTER TABLE servers ADD COLUMN uptime_pct REAL NOT NULL DEFAULT 100.0;",
 		"ALTER TABLE servers ADD COLUMN last_checked DATETIME;",
+		"ALTER TABLE servers ADD COLUMN protocol TEXT NOT NULL DEFAULT 'HTTP';",
+		"ALTER TABLE servers ADD COLUMN ssl_expiry_days INTEGER NOT NULL DEFAULT -1;",
 	}
 	for _, m := range migrations {
 		_, _ = conn.Exec(m)
@@ -119,7 +123,6 @@ func NewDB(dbPath string) (*DB, error) {
 	if _, err := conn.Exec(schemaSQL); err != nil {
 		return nil, fmt.Errorf("failed to execute embedded schema: %w", err)
 	}
-
 
 	db := &DB{conn: conn}
 
@@ -156,12 +159,12 @@ func (db *DB) GetServerByID(id string) (*Server, error) {
 	var s Server
 	var lastChecked sql.NullTime
 	err := db.conn.QueryRow(`
-		SELECT id, name, ip_address, region, status, driver, endpoint_url, latency_ms, uptime_pct,
+		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, latency_ms, uptime_pct,
 		       cpu_usage, memory_usage, storage_usage, uptime, last_checked, created_at, updated_at
 		FROM servers
 		WHERE id = ?
 	`, id).Scan(
-		&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.LatencyMS, &s.UptimePct,
+		&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays, &s.LatencyMS, &s.UptimePct,
 		&s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime, &lastChecked, &s.CreatedAt, &s.UpdatedAt,
 	)
 	if err != nil {
@@ -219,7 +222,7 @@ func (db *DB) SearchServers(query, status, region string) ([]Server, error) {
 	}
 
 	sqlQuery := `
-		SELECT id, name, ip_address, region, status, driver, endpoint_url, latency_ms, uptime_pct,
+		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, latency_ms, uptime_pct,
 		       cpu_usage, memory_usage, storage_usage, uptime, last_checked, created_at, updated_at
 		FROM servers
 	`
@@ -238,7 +241,7 @@ func (db *DB) SearchServers(query, status, region string) ([]Server, error) {
 		var s Server
 		var lastChecked sql.NullTime
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.LatencyMS, &s.UptimePct,
+			&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays, &s.LatencyMS, &s.UptimePct,
 			&s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime, &lastChecked, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			_ = rows.Close()
@@ -443,9 +446,14 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 	id := fmt.Sprintf("srv-%s-%03d", strings.ToLower(region[:2]), rand.Intn(900)+100)
 	ip := fmt.Sprintf("10.0.%d.%d", rand.Intn(10)+1, rand.Intn(240)+10)
 	latency := 0.0
+	protocol := "HTTP"
+	sslExpiryDays := -1
 
-	// Resolve real DNS IP if an HTTP/HTTPS endpoint URL is provided
+	// Resolve real DNS IP if an HTTP/HTTPS or TCP endpoint URL is provided
 	if driver == "http" && endpointURL != "" {
+		if strings.HasPrefix(strings.ToLower(endpointURL), "https://") {
+			protocol = "HTTPS"
+		}
 		if u, err := url.Parse(endpointURL); err == nil {
 			host := u.Hostname()
 			if host != "" {
@@ -456,6 +464,18 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 				}
 			}
 		}
+	} else if driver == "tcp" && endpointURL != "" {
+		protocol = "TCP"
+		host, _, err := net.SplitHostPort(endpointURL)
+		if err == nil && host != "" {
+			if ips, err := net.LookupIP(host); err == nil && len(ips) > 0 {
+				ip = ips[0].String()
+			} else {
+				ip = host
+			}
+		} else {
+			ip = endpointURL
+		}
 	} else if driver == "demo" {
 		latency = 28.5 + rand.Float64()*15.0
 	}
@@ -465,30 +485,32 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 	disk := 10.0 + rand.Float64()*20.0
 
 	server := &Server{
-		ID:           id,
-		Name:         name,
-		IPAddress:    ip,
-		Region:       region,
-		Status:       "active",
-		Driver:       driver,
-		EndpointURL:  endpointURL,
-		LatencyMS:    latency,
-		UptimePct:    100.0,
-		CPUUsage:     cpu,
-		MemoryUsage:  mem,
-		StorageUsage: disk,
-		Uptime:       "1m (provisioned)",
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:            id,
+		Name:          name,
+		IPAddress:     ip,
+		Region:        region,
+		Status:        "active",
+		Driver:        driver,
+		EndpointURL:   endpointURL,
+		Protocol:      protocol,
+		SSLExpiryDays: sslExpiryDays,
+		LatencyMS:     latency,
+		UptimePct:     100.0,
+		CPUUsage:      cpu,
+		MemoryUsage:   mem,
+		StorageUsage:  disk,
+		Uptime:        "1m (provisioned)",
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 
 	_, err := db.conn.Exec(`
-		INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, latency_ms, uptime_pct,
+		INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, latency_ms, uptime_pct,
 		                     cpu_usage, memory_usage, storage_usage, uptime, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, server.ID, server.Name, server.IPAddress, server.Region, server.Status, server.Driver, server.EndpointURL,
-		server.LatencyMS, server.UptimePct, server.CPUUsage, server.MemoryUsage, server.StorageUsage, server.Uptime,
-		server.CreatedAt, server.UpdatedAt)
+		server.Protocol, server.SSLExpiryDays, server.LatencyMS, server.UptimePct, server.CPUUsage, server.MemoryUsage,
+		server.StorageUsage, server.Uptime, server.CreatedAt, server.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -501,10 +523,21 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 		`, server.ID, latency, now)
 	}
 
-	logMsg := fmt.Sprintf("[%s] Node provisioned (%s, Driver: %s, Endpoint: %s)", server.Name, server.ID, server.Driver, server.EndpointURL)
+	logMsg := fmt.Sprintf("[%s] Node provisioned (%s, Driver: %s, Protocol: %s, Endpoint: %s)", server.Name, server.ID, server.Driver, server.Protocol, server.EndpointURL)
 	_, _ = db.conn.Exec(`INSERT INTO logs (server_id, level, message, created_at) VALUES (?, 'DEPLOY', ?, ?)`, server.ID, logMsg, now)
 
 	return server, nil
+}
+
+func (db *DB) UpdateSSLExpiry(serverID string, days int) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	_, err := db.conn.Exec("UPDATE servers SET ssl_expiry_days = ? WHERE id = ?", days, serverID)
+	return err
+}
+
+func (db *DB) ExportFleet() ([]Server, error) {
+	return db.GetAllServers()
 }
 
 func (db *DB) ClearAllServers() error {
@@ -671,98 +704,108 @@ func (db *DB) SeedDemoFleet() error {
 
 	demoServers := []Server{
 		{
-			ID:           "srv-us-101",
-			Name:         "github-api-gateway",
-			IPAddress:    "cloud-edge",
-			Region:       "us-east-1",
-			Status:       "active",
-			Driver:       "http",
-			EndpointURL:  "https://api.github.com",
-			LatencyMS:    42.4,
-			UptimePct:    99.98,
-			CPUUsage:     24.5,
-			MemoryUsage:  48.2,
-			StorageUsage: 34.0,
-			Uptime:       "18d 4h",
-			CreatedAt:    now.Add(-24 * 18 * time.Hour),
-			UpdatedAt:    now,
+			ID:            "srv-us-101",
+			Name:          "github-api-gateway",
+			IPAddress:     "140.82.112.4",
+			Region:        "us-east-1",
+			Status:        "active",
+			Driver:        "http",
+			EndpointURL:   "https://api.github.com",
+			Protocol:      "HTTPS",
+			SSLExpiryDays: 84,
+			LatencyMS:     36.4,
+			UptimePct:     99.98,
+			CPUUsage:      24.5,
+			MemoryUsage:   48.2,
+			StorageUsage:  34.0,
+			Uptime:        "18d 4h",
+			CreatedAt:     now.Add(-24 * 18 * time.Hour),
+			UpdatedAt:     now,
 		},
 		{
-			ID:           "srv-us-102",
-			Name:         "auth-cluster-master",
-			IPAddress:    "10.0.1.15",
-			Region:       "us-east-1",
-			Status:       "active",
-			Driver:       "system",
-			EndpointURL:  "/var/run/auth-daemon.sock",
-			LatencyMS:    2.8,
-			UptimePct:    100.0,
-			CPUUsage:     18.2,
-			MemoryUsage:  38.5,
-			StorageUsage: 28.5,
-			Uptime:       "24d 12h",
-			CreatedAt:    now.Add(-24 * 24 * time.Hour),
-			UpdatedAt:    now,
+			ID:            "srv-us-102",
+			Name:          "postgres-cluster-pri",
+			IPAddress:     "10.0.1.15",
+			Region:        "us-east-1",
+			Status:        "active",
+			Driver:        "tcp",
+			EndpointURL:   "db.us-east-1.internal:5432",
+			Protocol:      "TCP",
+			SSLExpiryDays: -1,
+			LatencyMS:     2.8,
+			UptimePct:     100.0,
+			CPUUsage:      18.2,
+			MemoryUsage:   38.5,
+			StorageUsage:  28.5,
+			Uptime:        "24d 12h",
+			CreatedAt:     now.Add(-24 * 24 * time.Hour),
+			UpdatedAt:     now,
 		},
 		{
-			ID:           "srv-eu-201",
-			Name:         "db-replica-fra",
-			IPAddress:    "10.0.2.80",
-			Region:       "eu-central-1",
-			Status:       "active",
-			Driver:       "demo",
-			EndpointURL:  "",
-			LatencyMS:    38.6,
-			UptimePct:    99.85,
-			CPUUsage:     58.6,
-			MemoryUsage:  82.4,
-			StorageUsage: 76.5,
-			Uptime:       "9d 1h",
-			CreatedAt:    now.Add(-24 * 9 * time.Hour),
-			UpdatedAt:    now,
+			ID:            "srv-eu-201",
+			Name:          "redis-cache-fra",
+			IPAddress:     "10.0.2.80",
+			Region:        "eu-central-1",
+			Status:        "active",
+			Driver:        "tcp",
+			EndpointURL:   "cache.eu-central-1.internal:6379",
+			Protocol:      "TCP",
+			SSLExpiryDays: -1,
+			LatencyMS:     1.4,
+			UptimePct:     99.95,
+			CPUUsage:      12.6,
+			MemoryUsage:   42.4,
+			StorageUsage:  16.5,
+			Uptime:        "9d 1h",
+			CreatedAt:     now.Add(-24 * 9 * time.Hour),
+			UpdatedAt:     now,
 		},
 		{
-			ID:           "srv-us-205",
-			Name:         "worker-batch-node",
-			IPAddress:    "10.0.1.205",
-			Region:       "us-east-1",
-			Status:       "stopped",
-			Driver:       "system",
-			EndpointURL:  "service:worker-queue",
-			LatencyMS:    0.0,
-			UptimePct:    94.50,
-			CPUUsage:     0.0,
-			MemoryUsage:  0.0,
-			StorageUsage: 15.2,
-			Uptime:       "0m",
-			CreatedAt:    now.Add(-24 * 5 * time.Hour),
-			UpdatedAt:    now,
+			ID:            "srv-us-205",
+			Name:          "worker-batch-node",
+			IPAddress:     "10.0.1.205",
+			Region:        "us-east-1",
+			Status:        "stopped",
+			Driver:        "demo",
+			EndpointURL:   "service:worker-queue",
+			Protocol:      "HTTP",
+			SSLExpiryDays: -1,
+			LatencyMS:     0.0,
+			UptimePct:     94.50,
+			CPUUsage:      0.0,
+			MemoryUsage:   0.0,
+			StorageUsage:  15.2,
+			Uptime:        "0m",
+			CreatedAt:     now.Add(-24 * 5 * time.Hour),
+			UpdatedAt:     now,
 		},
 		{
-			ID:           "srv-ap-301",
-			Name:         "cdn-origin-sgp",
-			IPAddress:    "10.0.3.12",
-			Region:       "ap-southeast-1",
-			Status:       "active",
-			Driver:       "demo",
-			EndpointURL:  "",
-			LatencyMS:    18.4,
-			UptimePct:    99.95,
-			CPUUsage:     22.3,
-			MemoryUsage:  41.5,
-			StorageUsage: 22.0,
-			Uptime:       "31d 8h",
-			CreatedAt:    now.Add(-24 * 31 * time.Hour),
-			UpdatedAt:    now,
+			ID:            "srv-ap-301",
+			Name:          "cloudflare-cdn-edge",
+			IPAddress:     "104.16.124.96",
+			Region:        "ap-southeast-1",
+			Status:        "active",
+			Driver:        "http",
+			EndpointURL:   "https://cloudflare.com",
+			Protocol:      "HTTPS",
+			SSLExpiryDays: 142,
+			LatencyMS:     18.4,
+			UptimePct:     99.99,
+			CPUUsage:      22.3,
+			MemoryUsage:   41.5,
+			StorageUsage:  22.0,
+			Uptime:        "31d 8h",
+			CreatedAt:     now.Add(-24 * 31 * time.Hour),
+			UpdatedAt:     now,
 		},
 	}
 
 	for _, s := range demoServers {
 		_, err := db.conn.Exec(`
-			INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, latency_ms, uptime_pct,
+			INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, latency_ms, uptime_pct,
 			                     cpu_usage, memory_usage, storage_usage, uptime, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, s.ID, s.Name, s.IPAddress, s.Region, s.Status, s.Driver, s.EndpointURL, s.LatencyMS, s.UptimePct,
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, s.ID, s.Name, s.IPAddress, s.Region, s.Status, s.Driver, s.EndpointURL, s.Protocol, s.SSLExpiryDays, s.LatencyMS, s.UptimePct,
 			s.CPUUsage, s.MemoryUsage, s.StorageUsage, s.Uptime, s.CreatedAt, s.UpdatedAt)
 		if err != nil {
 			return err
