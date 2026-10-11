@@ -179,3 +179,53 @@ func TestGetHostMetrics(t *testing.T) {
 		t.Errorf("Expected Go version string, got empty")
 	}
 }
+
+func TestPublicServersAndIncidents(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// 1. Verify auto-seeded public servers
+	pubServers, err := db.GetPublicServers()
+	if err != nil {
+		t.Fatalf("GetPublicServers failed: %v", err)
+	}
+	if len(pubServers) == 0 {
+		t.Errorf("Expected public servers seeded, got 0")
+	}
+
+	// 2. Verify auto-seeded incidents
+	incidents, err := db.GetRecentIncidents(10)
+	if err != nil {
+		t.Fatalf("GetRecentIncidents failed: %v", err)
+	}
+	if len(incidents) == 0 {
+		t.Errorf("Expected demo incidents seeded, got 0")
+	}
+
+	// 3. Create a new incident and resolve it
+	newInc, err := db.CreateIncident("High Memory Usage on Edge Node", "investigating", "minor", "srv-us-101", "Investigating heap usage spike")
+	if err != nil {
+		t.Fatalf("CreateIncident failed: %v", err)
+	}
+	if newInc.Status != "investigating" {
+		t.Errorf("Expected status investigating, got %s", newInc.Status)
+	}
+
+	err = db.ResolveIncident(newInc.ID)
+	if err != nil {
+		t.Fatalf("ResolveIncident failed: %v", err)
+	}
+
+	// 4. Toggle visibility
+	err = db.ToggleServerVisibility(pubServers[0].ID, false)
+	if err != nil {
+		t.Fatalf("ToggleServerVisibility failed: %v", err)
+	}
+	updatedPub, err := db.GetPublicServers()
+	if err != nil {
+		t.Fatalf("GetPublicServers after toggle failed: %v", err)
+	}
+	if len(updatedPub) != len(pubServers)-1 {
+		t.Errorf("Expected %d public servers after toggle, got %d", len(pubServers)-1, len(updatedPub))
+	}
+}

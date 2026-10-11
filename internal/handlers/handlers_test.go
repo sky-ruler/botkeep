@@ -49,6 +49,10 @@ func setupTestServer(t *testing.T) (*chi.Mux, func()) {
 	r.Get("/metrics/prometheus", h.PrometheusMetrics)
 	r.Get("/api/fleet/export", h.ExportFleet)
 	r.Get("/logs", h.GetLogs)
+	r.Get("/status", h.StatusPage)
+	r.Get("/status/components", h.StatusComponents)
+	r.Get("/api/status", h.StatusJSON)
+	r.Post("/admin/incidents/new", h.CreateIncident)
 
 	cleanup := func() {
 		_ = db.Close()
@@ -203,5 +207,70 @@ func TestExportFleet(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "srv-us-101") {
 		t.Errorf("Expected JSON export to contain seed server srv-us-101")
+	}
+}
+
+func TestStatusPageHandler(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	req := httptest.NewRequest("GET", "/status", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "BotKeep Status") {
+		t.Errorf("Expected body to contain 'BotKeep Status'")
+	}
+	if !strings.Contains(body, "Past Incidents & Maintenance") {
+		t.Errorf("Expected body to contain 'Past Incidents & Maintenance'")
+	}
+}
+
+func TestStatusJSONHandler(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	req := httptest.NewRequest("GET", "/api/status", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+	contentType := w.Header().Get("Content-Type")
+	if !strings.Contains(contentType, "application/json") {
+		t.Errorf("Expected application/json, got %s", contentType)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "indicator") {
+		t.Errorf("Expected JSON to contain indicator field")
+	}
+	if !strings.Contains(body, "components") {
+		t.Errorf("Expected JSON to contain components field")
+	}
+}
+
+func TestCreateIncidentHandler(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	form := url.Values{}
+	form.Set("title", "Upstream DNS Degraded")
+	form.Set("status", "investigating")
+	form.Set("severity", "minor")
+	form.Set("affected_components", "api-gateway")
+	form.Set("message", "Investigating slow DNS resolution from upstream provider")
+
+	req := httptest.NewRequest("POST", "/admin/incidents/new", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusSeeOther {
+		t.Errorf("Expected status 303 redirect, got %d", w.Code)
 	}
 }

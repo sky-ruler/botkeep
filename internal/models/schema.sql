@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS servers (
     endpoint_url TEXT NOT NULL DEFAULT '',
     protocol TEXT NOT NULL DEFAULT 'HTTP',
     ssl_expiry_days INTEGER NOT NULL DEFAULT -1,
+    is_public INTEGER NOT NULL DEFAULT 1,
     latency_ms REAL NOT NULL DEFAULT 0.0,
     uptime_pct REAL NOT NULL DEFAULT 100.0,
     cpu_usage REAL NOT NULL DEFAULT 0.0,
@@ -29,6 +30,17 @@ CREATE TABLE IF NOT EXISTS probe_history (
     FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS incidents (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('investigating', 'identified', 'monitoring', 'resolved')),
+    severity TEXT NOT NULL CHECK(severity IN ('minor', 'major', 'critical', 'maintenance')),
+    affected_components TEXT NOT NULL DEFAULT '',
+    message TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME
+);
+
 CREATE TABLE IF NOT EXISTS logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     server_id TEXT,
@@ -40,4 +52,5 @@ CREATE TABLE IF NOT EXISTS logs (
 CREATE INDEX IF NOT EXISTS idx_servers_status ON servers(status);
 CREATE INDEX IF NOT EXISTS idx_servers_driver ON servers(driver);
 CREATE INDEX IF NOT EXISTS idx_probe_history_server ON probe_history(server_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_incidents_created ON incidents(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at DESC);

@@ -28,6 +28,7 @@ type Server struct {
 	EndpointURL   string       `json:"endpoint_url"`
 	Protocol      string       `json:"protocol"` // "HTTP", "HTTPS", "TCP"
 	SSLExpiryDays int          `json:"ssl_expiry_days"`
+	IsPublic      bool         `json:"is_public"`
 	LatencyMS     float64      `json:"latency_ms"`
 	UptimePct     float64      `json:"uptime_pct"`
 	CPUUsage      float64      `json:"cpu_usage"`
@@ -38,6 +39,17 @@ type Server struct {
 	CreatedAt     time.Time    `json:"created_at"`
 	UpdatedAt     time.Time    `json:"updated_at"`
 	ProbePoints   []ProbePoint `json:"probe_points,omitempty"`
+}
+
+type Incident struct {
+	ID                 string     `json:"id"`
+	Title              string     `json:"title"`
+	Status             string     `json:"status"`   // "investigating", "identified", "monitoring", "resolved"
+	Severity           string     `json:"severity"` // "minor", "major", "critical", "maintenance"
+	AffectedComponents string     `json:"affected_components"`
+	Message            string     `json:"message"`
+	CreatedAt          time.Time  `json:"created_at"`
+	ResolvedAt         *time.Time `json:"resolved_at,omitempty"`
 }
 
 type ProbePoint struct {
@@ -114,6 +126,7 @@ func NewDB(dbPath string) (*DB, error) {
 		"ALTER TABLE servers ADD COLUMN last_checked DATETIME;",
 		"ALTER TABLE servers ADD COLUMN protocol TEXT NOT NULL DEFAULT 'HTTP';",
 		"ALTER TABLE servers ADD COLUMN ssl_expiry_days INTEGER NOT NULL DEFAULT -1;",
+		"ALTER TABLE servers ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1;",
 	}
 	for _, m := range migrations {
 		_, _ = conn.Exec(m)
@@ -158,18 +171,20 @@ func (db *DB) GetServerByID(id string) (*Server, error) {
 
 	var s Server
 	var lastChecked sql.NullTime
+	var isPublicInt int
 	err := db.conn.QueryRow(`
-		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, latency_ms, uptime_pct,
+		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
 		       cpu_usage, memory_usage, storage_usage, uptime, last_checked, created_at, updated_at
 		FROM servers
 		WHERE id = ?
 	`, id).Scan(
-		&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays, &s.LatencyMS, &s.UptimePct,
+		&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays, &isPublicInt, &s.LatencyMS, &s.UptimePct,
 		&s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime, &lastChecked, &s.CreatedAt, &s.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
+	s.IsPublic = isPublicInt == 1
 	if lastChecked.Valid {
 		s.LastChecked = &lastChecked.Time
 	}
@@ -222,7 +237,7 @@ func (db *DB) SearchServers(query, status, region string) ([]Server, error) {
 	}
 
 	sqlQuery := `
-		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, latency_ms, uptime_pct,
+		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
 		       cpu_usage, memory_usage, storage_usage, uptime, last_checked, created_at, updated_at
 		FROM servers
 	`
@@ -240,13 +255,15 @@ func (db *DB) SearchServers(query, status, region string) ([]Server, error) {
 	for rows.Next() {
 		var s Server
 		var lastChecked sql.NullTime
+		var isPublicInt int
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays, &s.LatencyMS, &s.UptimePct,
+			&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays, &isPublicInt, &s.LatencyMS, &s.UptimePct,
 			&s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime, &lastChecked, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
+		s.IsPublic = isPublicInt == 1
 		if lastChecked.Valid {
 			s.LastChecked = &lastChecked.Time
 		}
@@ -494,6 +511,7 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 		EndpointURL:   endpointURL,
 		Protocol:      protocol,
 		SSLExpiryDays: sslExpiryDays,
+		IsPublic:      true,
 		LatencyMS:     latency,
 		UptimePct:     100.0,
 		CPUUsage:      cpu,
@@ -505,11 +523,11 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 	}
 
 	_, err := db.conn.Exec(`
-		INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, latency_ms, uptime_pct,
+		INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
 		                     cpu_usage, memory_usage, storage_usage, uptime, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, server.ID, server.Name, server.IPAddress, server.Region, server.Status, server.Driver, server.EndpointURL,
-		server.Protocol, server.SSLExpiryDays, server.LatencyMS, server.UptimePct, server.CPUUsage, server.MemoryUsage,
+		server.Protocol, server.SSLExpiryDays, 1, server.LatencyMS, server.UptimePct, server.CPUUsage, server.MemoryUsage,
 		server.StorageUsage, server.Uptime, server.CreatedAt, server.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -802,10 +820,10 @@ func (db *DB) SeedDemoFleet() error {
 
 	for _, s := range demoServers {
 		_, err := db.conn.Exec(`
-			INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, latency_ms, uptime_pct,
+			INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
 			                     cpu_usage, memory_usage, storage_usage, uptime, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, s.ID, s.Name, s.IPAddress, s.Region, s.Status, s.Driver, s.EndpointURL, s.Protocol, s.SSLExpiryDays, s.LatencyMS, s.UptimePct,
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, s.ID, s.Name, s.IPAddress, s.Region, s.Status, s.Driver, s.EndpointURL, s.Protocol, s.SSLExpiryDays, 1, s.LatencyMS, s.UptimePct,
 			s.CPUUsage, s.MemoryUsage, s.StorageUsage, s.Uptime, s.CreatedAt, s.UpdatedAt)
 		if err != nil {
 			return err
@@ -828,6 +846,39 @@ func (db *DB) SeedDemoFleet() error {
 		}
 	}
 
+	// Seed realistic demo incidents for /status timeline
+	demoIncidents := []struct {
+		id, title, status, severity, comps, msg string
+		created, resolved                       time.Time
+	}{
+		{
+			id:       "inc-2026-001",
+			title:    "Edge CDN Routing Transit Degradation",
+			status:   "resolved",
+			severity: "minor",
+			comps:    "cloudflare-cdn-edge, github-api-gateway",
+			msg:      "Upstream transit provider experienced brief packet loss in Frankfurt. Traffic was automatically rerouted via alternate tier-1 backbone. All latency metrics restored to nominal.",
+			created:  now.Add(-3 * time.Hour),
+			resolved: now.Add(-45 * time.Minute),
+		},
+		{
+			id:       "inc-2026-002",
+			title:    "Scheduled Primary Database Maintenance & Compaction",
+			status:   "resolved",
+			severity: "maintenance",
+			comps:    "postgres-cluster-pri",
+			msg:      "Routine WAL checkpointing and index compaction completed without downtime or query degradation.",
+			created:  now.Add(-24 * time.Hour),
+			resolved: now.Add(-23 * time.Hour),
+		},
+	}
+	for _, inc := range demoIncidents {
+		_, _ = db.conn.Exec(`
+			INSERT INTO incidents (id, title, status, severity, affected_components, message, created_at, resolved_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, inc.id, inc.title, inc.status, inc.severity, inc.comps, inc.msg, inc.created, inc.resolved)
+	}
+
 	demoLogs := []struct {
 		srvID string
 		lvl   string
@@ -846,6 +897,146 @@ func (db *DB) SeedDemoFleet() error {
 	}
 
 	return nil
+}
+
+// GetPublicServers returns all monitored targets marked as public.
+func (db *DB) GetPublicServers() ([]Server, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	rows, err := db.conn.Query(`
+		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
+		       cpu_usage, memory_usage, storage_usage, uptime, last_checked, created_at, updated_at
+		FROM servers
+		WHERE is_public = 1
+		ORDER BY created_at ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+
+	var servers []Server
+	for rows.Next() {
+		var s Server
+		var lastChecked sql.NullTime
+		var isPublicInt int
+		if err := rows.Scan(
+			&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays, &isPublicInt, &s.LatencyMS, &s.UptimePct,
+			&s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime, &lastChecked, &s.CreatedAt, &s.UpdatedAt,
+		); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		s.IsPublic = isPublicInt == 1
+		if lastChecked.Valid {
+			s.LastChecked = &lastChecked.Time
+		}
+		servers = append(servers, s)
+	}
+	_ = rows.Close()
+
+	for i := range servers {
+		servers[i].ProbePoints, _ = db.getProbeHistoryUnsafe(servers[i].ID, 30)
+	}
+
+	return servers, nil
+}
+
+// CreateIncident logs a new public service incident or maintenance window.
+func (db *DB) CreateIncident(title, status, severity, affectedComponents, message string) (*Incident, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	now := time.Now()
+	id := fmt.Sprintf("inc-%d", now.Unix())
+	var resolvedAt *time.Time
+	if status == "resolved" {
+		resolvedAt = &now
+	}
+
+	_, err := db.conn.Exec(`
+		INSERT INTO incidents (id, title, status, severity, affected_components, message, created_at, resolved_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, id, title, status, severity, affectedComponents, message, now, resolvedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	logMsg := fmt.Sprintf("[INCIDENT] %s - %s (%s)", title, status, severity)
+	_, _ = db.conn.Exec(`INSERT INTO logs (server_id, level, message, created_at) VALUES (?, 'WARN', ?, ?)`, id, logMsg, now)
+
+	return &Incident{
+		ID:                 id,
+		Title:              title,
+		Status:             status,
+		Severity:           severity,
+		AffectedComponents: affectedComponents,
+		Message:            message,
+		CreatedAt:          now,
+		ResolvedAt:         resolvedAt,
+	}, nil
+}
+
+// GetRecentIncidents returns recent incidents ordered chronologically (newest first).
+func (db *DB) GetRecentIncidents(limit int) ([]Incident, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	if limit <= 0 {
+		limit = 10
+	}
+
+	rows, err := db.conn.Query(`
+		SELECT id, title, status, severity, affected_components, message, created_at, resolved_at
+		FROM incidents
+		ORDER BY created_at DESC
+		LIMIT ?
+	`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var incidents []Incident
+	for rows.Next() {
+		var inc Incident
+		var res sql.NullTime
+		if err := rows.Scan(&inc.ID, &inc.Title, &inc.Status, &inc.Severity, &inc.AffectedComponents, &inc.Message, &inc.CreatedAt, &res); err != nil {
+			return nil, err
+		}
+		if res.Valid {
+			inc.ResolvedAt = &res.Time
+		}
+		incidents = append(incidents, inc)
+	}
+	return incidents, nil
+}
+
+// ResolveIncident marks an incident as resolved with timestamp.
+func (db *DB) ResolveIncident(id string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	now := time.Now()
+	_, err := db.conn.Exec(`
+		UPDATE incidents
+		SET status = 'resolved', resolved_at = ?
+		WHERE id = ?
+	`, now, id)
+	return err
+}
+
+// ToggleServerVisibility switches public visibility of a target on the /status page.
+func (db *DB) ToggleServerVisibility(id string, isPublic bool) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	val := 0
+	if isPublic {
+		val = 1
+	}
+	_, err := db.conn.Exec(`UPDATE servers SET is_public = ? WHERE id = ?`, val, id)
+	return err
 }
 
 func GetHostMetrics() HostMetrics {

@@ -1,0 +1,350 @@
+package pages
+
+import (
+	"fmt"
+	"time"
+	"botkeep/internal/models"
+	"botkeep/views/components"
+)
+
+templ PublicStatusPage(servers []models.Server, incidents []models.Incident, overallSLA float64, avgLatency float64, lastUpdated time.Time) {
+	<!DOCTYPE html>
+	<html lang="en" class="dark h-full">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>System Status — BotKeep Edge Network</title>
+			<link rel="preconnect" href="https://fonts.googleapis.com"/>
+			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+			<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+			<link rel="stylesheet" href="/static/css/output.css"/>
+			<script src="/static/js/htmx.min.js"></script>
+		</head>
+		<body class="min-h-full bg-zinc-950 text-zinc-100 font-sans antialiased selection:bg-zinc-800 selection:text-zinc-100">
+			<div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8 sm:space-y-10">
+				<!-- Public Status Header -->
+				<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-800/80">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold shadow-md">
+							@components.IconLayers("w-5 h-5 text-zinc-950")
+						</div>
+						<div>
+							<div class="flex items-center gap-2">
+								<h1 class="text-lg font-bold tracking-tight text-zinc-100">BotKeep Status</h1>
+								<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-zinc-900 text-emerald-400 border border-zinc-800">Live</span>
+							</div>
+							<p class="text-xs text-zinc-400 mt-0.5">Real-time edge telemetry and service availability</p>
+						</div>
+					</div>
+
+					<div class="flex items-center gap-2.5">
+						<a
+							href="/api/status"
+							target="_blank"
+							rel="noopener noreferrer"
+							class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 transition-colors shadow-sm"
+							title="View programmatic JSON status feed"
+						>
+							<svg class="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+								<polyline points="14 2 14 8 20 8"></polyline>
+								<line x1="16" y1="13" x2="8" y2="13"></line>
+								<line x1="16" y1="17" x2="8" y2="17"></line>
+								<polyline points="10 9 9 9 8 9"></polyline>
+							</svg>
+							<span>JSON API</span>
+						</a>
+
+						<a
+							href="/"
+							class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 text-zinc-950 hover:bg-white active:bg-zinc-200 transition-colors shadow-sm"
+							title="Open internal DevOps fleet manager"
+						>
+							<span>DevOps Fleet</span>
+							<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<line x1="7" y1="17" x2="17" y2="7"></line>
+								<polyline points="7 7 17 7 17 17"></polyline>
+							</svg>
+						</a>
+					</div>
+				</header>
+
+				<!-- Hero Status Banner -->
+				@HeroStatusBanner(servers, overallSLA)
+
+				<!-- Key Performance Gauges -->
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+					<div class="p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 flex items-center justify-between">
+						<div>
+							<span class="text-[11px] font-medium uppercase tracking-wider text-zinc-400">System SLA</span>
+							<p class="text-xl font-bold font-mono text-zinc-100 mt-1">{ fmt.Sprintf("%.2f%%", overallSLA) }</p>
+						</div>
+						<div class="p-2 rounded-lg bg-zinc-800/60 border border-zinc-700/40 text-emerald-400">
+							@components.IconCheckCircle("w-4 h-4")
+						</div>
+					</div>
+
+					<div class="p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 flex items-center justify-between">
+						<div>
+							<span class="text-[11px] font-medium uppercase tracking-wider text-zinc-400">Public Targets</span>
+							<p class="text-xl font-bold font-mono text-zinc-100 mt-1">
+								{ fmt.Sprintf("%d / %d", countActive(servers), len(servers)) }
+							</p>
+						</div>
+						<div class="p-2 rounded-lg bg-zinc-800/60 border border-zinc-700/40 text-cyan-400">
+							@components.IconServer("w-4 h-4")
+						</div>
+					</div>
+
+					<div class="p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 flex items-center justify-between">
+						<div>
+							<span class="text-[11px] font-medium uppercase tracking-wider text-zinc-400">Avg Probe Latency</span>
+							<p class="text-xl font-bold font-mono text-zinc-100 mt-1">{ fmt.Sprintf("%.1fms", avgLatency) }</p>
+						</div>
+						<div class="p-2 rounded-lg bg-zinc-800/60 border border-zinc-700/40 text-amber-400">
+							@components.IconActivity("w-4 h-4")
+						</div>
+					</div>
+				</div>
+
+				<!-- Section: Monitored Services & Endpoints (Auto-polled by HTMX every 10s) -->
+				<div class="space-y-4">
+					<div class="flex items-center justify-between">
+						<h2 class="text-sm font-semibold tracking-tight text-zinc-200">Services & Infrastructure Components</h2>
+						<div class="flex items-center gap-2 text-xs text-zinc-500 font-mono">
+							<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+							<span>Live polling (10s)</span>
+						</div>
+					</div>
+
+					<div
+						id="status-components"
+						hx-get="/status/components"
+						hx-trigger="every 10s"
+						hx-swap="innerHTML"
+						class="rounded-xl border border-zinc-800 bg-zinc-900/30 overflow-hidden divide-y divide-zinc-800/60"
+					>
+						@StatusComponentsList(servers)
+					</div>
+				</div>
+
+				<!-- Section: Past Incidents & Maintenance Timeline -->
+				<div class="space-y-4">
+					<div class="flex items-center justify-between">
+						<h2 class="text-sm font-semibold tracking-tight text-zinc-200">Past Incidents & Maintenance</h2>
+						<span class="text-xs text-zinc-500 font-mono">90-day history</span>
+					</div>
+
+					<div class="space-y-3">
+						if len(incidents) == 0 {
+							<div class="p-6 rounded-xl border border-zinc-800 bg-zinc-900/20 text-center space-y-1">
+								<p class="text-xs font-medium text-zinc-300">No incidents reported</p>
+								<p class="text-[11px] text-zinc-500">All edge services and cluster components have maintained continuous availability.</p>
+							</div>
+						} else {
+							for _, inc := range incidents {
+								@IncidentCard(inc)
+							}
+						}
+					</div>
+				</div>
+
+				<!-- Public Status Footer -->
+				<footer class="pt-8 border-t border-zinc-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
+					<div class="flex items-center gap-2">
+						<div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+						<span>All data measured in real time by BotKeep engine</span>
+					</div>
+
+					<div class="flex items-center gap-4 font-mono text-[11px]">
+						<span>Updated { lastUpdated.Format("15:04:05 UTC") }</span>
+						<span>•</span>
+						<a href="https://github.com/sky-ruler/botkeep" target="_blank" rel="noopener noreferrer" class="text-zinc-400 hover:text-zinc-200 transition-colors">github.com/sky-ruler/botkeep</a>
+					</div>
+				</footer>
+			</div>
+		</body>
+	</html>
+}
+
+templ HeroStatusBanner(servers []models.Server, overallSLA float64) {
+	{{ stopped := countStopped(servers) }}
+	if stopped == 0 {
+		<div class="p-5 sm:p-6 rounded-xl bg-emerald-950/20 border border-emerald-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-emerald-950/20">
+			<div class="flex items-center gap-3.5">
+				<span class="relative flex h-3.5 w-3.5 flex-shrink-0">
+					<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+					<span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
+				</span>
+				<div>
+					<h2 class="text-base sm:text-lg font-semibold text-emerald-200 tracking-tight">All Systems Operational</h2>
+					<p class="text-xs text-emerald-400/80 mt-0.5">All monitored APIs, database clusters, and edge networks are responding nominally.</p>
+				</div>
+			</div>
+			<div class="text-left sm:text-right font-mono text-xs text-emerald-400/90 flex-shrink-0">
+				<span>{ fmt.Sprintf("%.2f%% uptime", overallSLA) }</span>
+			</div>
+		</div>
+	} else if stopped == 1 {
+		<div class="p-5 sm:p-6 rounded-xl bg-amber-950/20 border border-amber-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-amber-950/20">
+			<div class="flex items-center gap-3.5">
+				<span class="relative flex h-3.5 w-3.5 flex-shrink-0">
+					<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+					<span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-amber-500"></span>
+				</span>
+				<div>
+					<h2 class="text-base sm:text-lg font-semibold text-amber-200 tracking-tight">Partial System Degradation</h2>
+					<p class="text-xs text-amber-400/80 mt-0.5">1 service instance is currently offline or unreachable. Traffic is being rerouted.</p>
+				</div>
+			</div>
+			<div class="text-left sm:text-right font-mono text-xs text-amber-400/90 flex-shrink-0">
+				<span>1 incident active</span>
+			</div>
+		</div>
+	} else {
+		<div class="p-5 sm:p-6 rounded-xl bg-rose-950/20 border border-rose-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-rose-950/20">
+			<div class="flex items-center gap-3.5">
+				<span class="relative flex h-3.5 w-3.5 flex-shrink-0">
+					<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+					<span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500"></span>
+				</span>
+				<div>
+					<h2 class="text-base sm:text-lg font-semibold text-rose-200 tracking-tight">Major Outage Detected</h2>
+					<p class="text-xs text-rose-400/80 mt-0.5">{ fmt.Sprintf("%d service instances are currently unresponsive. Engineering team has been paged.", stopped) }</p>
+				</div>
+			</div>
+			<div class="text-left sm:text-right font-mono text-xs text-rose-400/90 flex-shrink-0">
+				<span>Multi-service failure</span>
+			</div>
+		</div>
+	}
+}
+
+templ StatusComponentsList(servers []models.Server) {
+	if len(servers) == 0 {
+		<div class="p-8 text-center text-xs text-zinc-500">
+			No public components are currently registered.
+		</div>
+	} else {
+		for _, s := range servers {
+			<div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-zinc-800/20 transition-colors">
+				<div class="flex items-center gap-3">
+					<div class="w-8 h-8 rounded-lg bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-300 flex-shrink-0">
+						if s.Driver == "tcp" {
+							@components.IconDatabase("w-4 h-4 text-amber-400")
+						} else if s.Driver == "http" {
+							@components.IconGlobe("w-4 h-4 text-cyan-400")
+						} else {
+							@components.IconServer("w-4 h-4")
+						}
+					</div>
+					<div>
+						<div class="flex flex-wrap items-center gap-2">
+							<span class="font-medium text-xs text-zinc-100">{ s.Name }</span>
+							@components.ProtocolBadge(s.Protocol)
+							if s.SSLExpiryDays >= 0 {
+								@components.SSLBadge(s.SSLExpiryDays)
+							}
+						</div>
+						<div class="flex items-center gap-2 text-[11px] text-zinc-500 font-mono mt-0.5">
+							<span>{ s.Region }</span>
+							if s.EndpointURL != "" {
+								<span>•</span>
+								<span class="truncate max-w-[200px] sm:max-w-xs text-zinc-400">{ s.EndpointURL }</span>
+							}
+						</div>
+					</div>
+				</div>
+
+				<div class="flex items-center justify-between sm:justify-end gap-4 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-800/40">
+					<!-- Spark dots / probe history -->
+					if len(s.ProbePoints) > 0 {
+						<div class="flex items-center gap-1" title="Recent health checks">
+							for _, pt := range s.ProbePoints {
+								if pt.Success {
+									<span class="w-1.5 h-1.5 rounded-full bg-emerald-400/80" title={ fmt.Sprintf("%.1fms", pt.LatencyMS) }></span>
+								} else {
+									<span class="w-1.5 h-1.5 rounded-full bg-rose-500" title={ fmt.Sprintf("Error HTTP %d", pt.StatusCode) }></span>
+								}
+							}
+						</div>
+					}
+
+					<div class="text-right">
+						if s.Status == "active" {
+							<div class="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
+								<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+								<span>Operational</span>
+							</div>
+							<div class="text-[10px] font-mono text-zinc-400 mt-0.5">
+								{ fmt.Sprintf("%.1fms • %.1f%% SLA", s.LatencyMS, s.UptimePct) }
+							</div>
+						} else {
+							<div class="flex items-center gap-1.5 text-xs font-medium text-rose-400">
+								<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+								<span>Degraded</span>
+							</div>
+							<div class="text-[10px] font-mono text-zinc-500 mt-0.5">
+								Service Offline
+							</div>
+						}
+					</div>
+				</div>
+			</div>
+		}
+	}
+}
+
+templ IncidentCard(inc models.Incident) {
+	<div class="p-5 rounded-xl border border-zinc-800 bg-zinc-900/40 space-y-3">
+		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+			<div class="flex items-center gap-2">
+				<h3 class="text-xs font-semibold text-zinc-100">{ inc.Title }</h3>
+				switch inc.Status {
+					case "resolved":
+						<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Resolved</span>
+					case "monitoring":
+						<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Monitoring</span>
+					case "identified":
+						<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">Identified</span>
+					case "investigating":
+						<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">Investigating</span>
+				}
+			</div>
+			<div class="text-[11px] font-mono text-zinc-500">
+				{ inc.CreatedAt.Format("Jan 02, 2006 • 15:04 UTC") }
+			</div>
+		</div>
+
+		<p class="text-xs leading-relaxed text-zinc-300">
+			{ inc.Message }
+		</p>
+
+		if inc.AffectedComponents != "" {
+			<div class="text-[11px] font-mono text-zinc-500 flex items-center gap-1.5 pt-1">
+				<span class="text-zinc-600">Affected:</span>
+				<span class="text-zinc-400">{ inc.AffectedComponents }</span>
+			</div>
+		}
+	</div>
+}
+
+func countActive(servers []models.Server) int {
+	c := 0
+	for _, s := range servers {
+		if s.Status == "active" {
+			c++
+		}
+	}
+	return c
+}
+
+func countStopped(servers []models.Server) int {
+	c := 0
+	for _, s := range servers {
+		if s.Status == "stopped" {
+			c++
+		}
+	}
+	return c
+}

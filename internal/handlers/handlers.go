@@ -443,6 +443,125 @@ func (h *Handler) ExportFleet(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+// StatusPage renders the public-facing status page.
+func (h *Handler) StatusPage(w http.ResponseWriter, r *http.Request) {
+	servers, err := h.db.GetPublicServers()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load status components: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	incidents, _ := h.db.GetRecentIncidents(10)
+
+	totalSLA := 0.0
+	totalLatency := 0.0
+	activeCount := 0
+	for _, s := range servers {
+		totalSLA += s.UptimePct
+		if s.Status == "active" {
+			totalLatency += s.LatencyMS
+			activeCount++
+		}
+	}
+
+	overallSLA := 100.0
+	if len(servers) > 0 {
+		overallSLA = totalSLA / float64(len(servers))
+	}
+	avgLatency := 0.0
+	if activeCount > 0 {
+		avgLatency = totalLatency / float64(activeCount)
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = pages.PublicStatusPage(servers, incidents, overallSLA, avgLatency, time.Now().UTC()).Render(r.Context(), w)
+}
+
+// StatusComponents renders just the component list for public HTMX polling.
+func (h *Handler) StatusComponents(w http.ResponseWriter, r *http.Request) {
+	servers, err := h.db.GetPublicServers()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = pages.StatusComponentsList(servers).Render(r.Context(), w)
+}
+
+// StatusJSON returns a programmatic JSON summary of the system status.
+func (h *Handler) StatusJSON(w http.ResponseWriter, r *http.Request) {
+	servers, err := h.db.GetPublicServers()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	incidents, _ := h.db.GetRecentIncidents(5)
+
+	stopped := 0
+	for _, s := range servers {
+		if s.Status == "stopped" {
+			stopped++
+		}
+	}
+
+	statusIndicator := "operational"
+	description := "All systems operational"
+	if stopped == 1 {
+		statusIndicator = "degraded"
+		description = "Partial system degradation"
+	} else if stopped > 1 {
+		statusIndicator = "outage"
+		description = "Major system outage detected"
+	}
+
+	payload := map[string]any{
+		"status": map[string]any{
+			"indicator":   statusIndicator,
+			"description": description,
+		},
+		"components": servers,
+		"incidents":  incidents,
+		"updated_at": time.Now().UTC(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	_ = json.NewEncoder(w).Encode(payload)
+}
+
+// CreateIncident handles administrative incident creation.
+func (h *Handler) CreateIncident(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	title := strings.TrimSpace(r.FormValue("title"))
+	status := strings.TrimSpace(r.FormValue("status"))
+	severity := strings.TrimSpace(r.FormValue("severity"))
+	affected := strings.TrimSpace(r.FormValue("affected_components"))
+	message := strings.TrimSpace(r.FormValue("message"))
+
+	if title == "" || message == "" {
+		http.Error(w, "Title and message are required", http.StatusBadRequest)
+		return
+	}
+	if status == "" {
+		status = "investigating"
+	}
+	if severity == "" {
+		severity = "minor"
+	}
+
+	_, err := h.db.CreateIncident(title, status, severity, affected, message)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/status", http.StatusSeeOther)
+}
+
 func isHTMX(r *http.Request) bool {
 	return r.Header.Get("HX-Request") == "true"
 }

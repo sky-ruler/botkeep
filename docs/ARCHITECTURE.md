@@ -125,6 +125,13 @@ BotKeep includes a native Prometheus scraper endpoint. Standard monitoring syste
 ### Fleet Configuration JSON Export (`/api/fleet/export`)
 Operators can download an instantaneous backup of the entire fleet registry, drivers, endpoints, regions, and SLA history as a clean JSON document.
 
+### Public Status Page & Incident Engine (`/status`)
+BotKeep includes an integrated customer-facing status page requiring zero external hosting or third-party fees:
+- **Public Component Isolation**: The `servers.is_public` boolean column allows operators to expose customer-facing endpoints while keeping internal nodes private.
+- **Incident Tracking**: The `incidents` SQLite table tracks chronological post-mortems and scheduled maintenance windows with status pills (`investigating`, `identified`, `monitoring`, `resolved`).
+- **Live HTMX Partial Polling**: Public visitors' browsers poll `/status/components` every 10 seconds to stream real-time latency and SLA updates without page reloads.
+- **CORS-Enabled Programmatic API**: `/api/status` returns instant JSON health indicators for shields.io badges or client app integrations.
+
 ---
 
 ## 6. Server-Driven UI with HTMX & `a-h/templ`

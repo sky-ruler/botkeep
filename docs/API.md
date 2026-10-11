@@ -63,11 +63,49 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
     "details": "HTTP status 503",
     "timestamp": "2026-10-12T04:20:00Z"
   }
+---
+
+### 3. Public Status Page & Incident Timelines
+
+#### `GET /status`
+- **Description**: Renders the customer-facing, public status page with real-time operational hero banners, system-wide SLA compliance percentage, public component health cards, and chronological 90-day incident/maintenance timelines.
+- **Authentication**: None (Publicly accessible).
+- **Response**: `200 OK` (`text/html`)
+
+#### `GET /status/components`
+- **Description**: HTMX atomic polling endpoint returning refreshed public component rows with live spark dots, latency, and operational badges (`hx-trigger="every 10s"`).
+- **Response**: `200 OK` (`text/html`)
+
+#### `GET /api/status`
+- **Description**: Exposes a clean, programmatic JSON feed of current system status indicator (`operational`, `degraded`, `outage`), public components, and recent incidents (suitable for shields.io badges, custom status widgets, or integration with external apps).
+- **CORS**: `Access-Control-Allow-Origin: *` enabled.
+- **Response**: `200 OK` (`application/json`)
+- **JSON Payload Schema**:
+  ```json
+  {
+    "status": {
+      "indicator": "operational",
+      "description": "All systems operational"
+    },
+    "components": [...],
+    "incidents": [...],
+    "updated_at": "2026-10-12T04:20:00Z"
+  }
   ```
+
+#### `POST /admin/incidents/new`
+- **Description**: Registers a new incident update or scheduled maintenance window.
+- **Form Parameters**:
+  - `title` *(string, required)*: Brief incident headline.
+  - `status` *(string, required)*: `investigating`, `identified`, `monitoring`, or `resolved`.
+  - `severity` *(string, required)*: `minor`, `major`, `critical`, or `maintenance`.
+  - `affected_components` *(string, optional)*: Comma-separated component names.
+  - `message` *(string, required)*: Markdown-formatted incident update message.
+- **Response**: `303 See Other` (Redirects to `/status`)
 
 ---
 
-### 3. Fleet Node Management & Multi-Protocol Probing
+### 4. Fleet Node Management & Multi-Protocol Probing
 
 #### `GET /servers`
 - **Description**: Queries and filters the fleet node catalog.

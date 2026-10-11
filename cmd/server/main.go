@@ -128,6 +128,12 @@ func main() {
 	r.Get("/logs", h.GetLogs)
 	r.Post("/logs/clear", h.ClearLogs)
 
+	// Public Status Page & Programmatic Feeds
+	r.Get("/status", h.StatusPage)
+	r.Get("/status/components", h.StatusComponents)
+	r.Get("/api/status", h.StatusJSON)
+	r.Post("/admin/incidents/new", h.CreateIncident)
+
 	// Health check endpoint
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
