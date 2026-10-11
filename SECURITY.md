@@ -4,14 +4,15 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.2.x   | :white_check_mark: |
-| < 1.2.0 | :x:                |
+| 2.0.x   | :white_check_mark: |
+| 1.x.x   | :white_check_mark: |
+| < 1.0.0 | :x:                |
 
 ## Reporting a Vulnerability
 
 We take the security of BotKeep seriously. If you discover a security vulnerability, please do NOT create a public issue.
 
-Instead, please report the vulnerability privately by opening a [GitHub Security Advisory](https://github.com/your-username/botkeep/security/advisories/new) or contacting the maintainers directly.
+Instead, please report the vulnerability privately by opening a [GitHub Security Advisory](https://github.com/sky-ruler/botkeep/security/advisories/new) or contacting the maintainers directly.
 
 Please include:
 - A description of the issue and potential impact
