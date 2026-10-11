@@ -7,9 +7,10 @@
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![HTMX](https://img.shields.io/badge/HTMX-2.0.4-336699?style=flat&logo=htmx)](https://htmx.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?style=flat&logo=tailwind-css)](https://tailwindcss.com)
+[![CI](https://github.com/sky-ruler/botkeep/actions/workflows/ci.yml/badge.svg)](https://github.com/sky-ruler/botkeep/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Single Binary](https://img.shields.io/badge/Binary-~12MB_Standalone-emerald)](https://github.com)
-[![CGO Free](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-blue)](https://github.com)
+[![Single Binary](https://img.shields.io/badge/Binary-~12MB_Standalone-emerald)](https://github.com/sky-ruler/botkeep)
+[![CGO Free](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-blue)](https://github.com/sky-ruler/botkeep)
 
 <p align="center">
   <b>Bypass JavaScript SPA bloat.</b> BotKeep delivers an ultra-fast, single-executable DevOps fleet dashboard combining <b>Go</b>, <b>HTMX</b>, <b>templ</b>, and <b>Tailwind CSS</b> with embedded pure-Go SQLite.
@@ -124,7 +125,7 @@ docker compose up -d
 ### Option 3: Build from Source
 ```bash
 # 1. Clone repository
-git clone https://github.com/your-username/botkeep.git
+git clone https://github.com/sky-ruler/botkeep.git
 cd botkeep
 
 # 2. Install dependencies & tools

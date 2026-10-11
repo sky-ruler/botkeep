@@ -14,7 +14,7 @@ Thank you for your interest in contributing to **BotKeep**! We are building an u
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/botkeep.git
+   git clone https://github.com/sky-ruler/botkeep.git
    cd botkeep
    ```
 
