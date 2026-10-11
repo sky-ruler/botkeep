@@ -5,6 +5,8 @@ import (
 	_ "embed"
 	"fmt"
 	"math/rand"
+	"net"
+	"net/url"
 	"runtime"
 	"strings"
 	"sync"
@@ -51,6 +53,8 @@ type ClusterMetrics struct {
 	TotalCount   int
 	StoppedCount int
 	AvgLatencyMS float64
+	AvgSLA       float64
+	Host         HostMetrics
 }
 
 type HostMetrics struct {
@@ -438,14 +442,27 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 	now := time.Now()
 	id := fmt.Sprintf("srv-%s-%03d", strings.ToLower(region[:2]), rand.Intn(900)+100)
 	ip := fmt.Sprintf("10.0.%d.%d", rand.Intn(10)+1, rand.Intn(240)+10)
+	latency := 0.0
+
+	// Resolve real DNS IP if an HTTP/HTTPS endpoint URL is provided
 	if driver == "http" && endpointURL != "" {
-		ip = "cloud-endpoint"
+		if u, err := url.Parse(endpointURL); err == nil {
+			host := u.Hostname()
+			if host != "" {
+				if ips, err := net.LookupIP(host); err == nil && len(ips) > 0 {
+					ip = ips[0].String()
+				} else {
+					ip = host
+				}
+			}
+		}
+	} else if driver == "demo" {
+		latency = 28.5 + rand.Float64()*15.0
 	}
 
 	cpu := 15.0 + rand.Float64()*30.0
 	mem := 25.0 + rand.Float64()*35.0
 	disk := 10.0 + rand.Float64()*20.0
-	latency := 28.5 + rand.Float64()*15.0
 
 	server := &Server{
 		ID:           id,
@@ -476,11 +493,13 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 		return nil, err
 	}
 
-	// Seed initial probe point
-	_, _ = db.conn.Exec(`
-		INSERT INTO probe_history (server_id, latency_ms, status_code, success, created_at)
-		VALUES (?, ?, 200, 1, ?)
-	`, server.ID, latency, now)
+	// Seed initial probe point only for simulated demo nodes
+	if driver == "demo" {
+		_, _ = db.conn.Exec(`
+			INSERT INTO probe_history (server_id, latency_ms, status_code, success, created_at)
+			VALUES (?, ?, 200, 1, ?)
+		`, server.ID, latency, now)
+	}
 
 	logMsg := fmt.Sprintf("[%s] Node provisioned (%s, Driver: %s, Endpoint: %s)", server.Name, server.ID, server.Driver, server.EndpointURL)
 	_, _ = db.conn.Exec(`INSERT INTO logs (server_id, level, message, created_at) VALUES (?, 'DEPLOY', ?, ?)`, server.ID, logMsg, now)
@@ -524,10 +543,12 @@ func (db *DB) GetMetrics() (*ClusterMetrics, error) {
 			TotalCount:   0,
 			StoppedCount: 0,
 			AvgLatencyMS: 0,
+			AvgSLA:       100.0,
+			Host:         GetHostMetrics(),
 		}, nil
 	}
 
-	var sumCPU, sumMem, sumStorage, sumLatency float64
+	var sumCPU, sumMem, sumStorage, sumLatency, sumSLA float64
 	var active, stopped int
 
 	for _, s := range servers {
@@ -540,11 +561,13 @@ func (db *DB) GetMetrics() (*ClusterMetrics, error) {
 			stopped++
 		}
 		sumStorage += s.StorageUsage
+		sumSLA += s.UptimePct
 	}
 
 	avgCPU := sumCPU / float64(len(servers))
 	avgMem := sumMem / float64(len(servers))
 	avgStorage := sumStorage / float64(len(servers))
+	avgSLA := sumSLA / float64(len(servers))
 	avgLatency := 0.0
 	if active > 0 {
 		avgLatency = sumLatency / float64(active)
@@ -558,6 +581,8 @@ func (db *DB) GetMetrics() (*ClusterMetrics, error) {
 		TotalCount:   len(servers),
 		StoppedCount: stopped,
 		AvgLatencyMS: avgLatency,
+		AvgSLA:       avgSLA,
+		Host:         GetHostMetrics(),
 	}, nil
 }
 

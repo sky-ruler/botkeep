@@ -59,6 +59,7 @@ Thank you for your interest in contributing to **BotKeep**! We are building an u
 - **Strict Linear/Vercel Theme**: Adhere to the established Tailwind Zinc palette (`bg-zinc-950`, `bg-zinc-900`, `border-zinc-800`).
 - **Single-Binary Principle**: All static assets and schemas MUST remain embeddable via Go `embed` (`//go:embed`). Avoid external runtime disk dependencies.
 - **CGO-Free Guarantee**: The project relies on pure Go SQLite (`modernc.org/sqlite`) to guarantee seamless cross-compilation with `CGO_ENABLED=0` on all platforms.
+- **Zero Hardcoding**: Ensure all displayed metrics, timestamps, host information, and server states are dynamically computed from the database or runtime environment. Mock data is strictly restricted to explicit demo drivers (`Driver: Simulated`).
 
 ---
 

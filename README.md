@@ -16,11 +16,23 @@
   <b>Bypass JavaScript SPA bloat.</b> BotKeep delivers an ultra-fast, single-executable DevOps fleet dashboard combining <b>Go</b>, <b>HTMX</b>, <b>templ</b>, and <b>Tailwind CSS</b> with embedded pure-Go SQLite.
 </p>
 
-[Quickstart](#-quickstart) • [Architecture](docs/ARCHITECTURE.md) • [API Reference](docs/API.md) • [Features](#-key-features) • [Configuration](#-configuration) • [Benchmarks](#-resource-footprint--benchmarks)
+[Quickstart](#-quickstart) • [Explained (ELI5 to Pro)](docs/EXPLAINED.md) • [Architecture](docs/ARCHITECTURE.md) • [API Reference](docs/API.md) • [Features](#-key-features) • [Configuration](#-configuration) • [Benchmarks](#-resource-footprint--benchmarks)
 
 ---
 
 </div>
+
+## 👶 Simple English Summary (What is BotKeep?)
+
+> 📘 **Want the complete breakdown? Read [BotKeep Explained: From Beginner to DevOps Pro](docs/EXPLAINED.md).**
+
+Think of BotKeep as a **24/7 personal doctor for your websites and servers**:
+- **Checks the Pulse**: Every 15 seconds, it pings your web apps and APIs to make sure they are healthy.
+- **Measures Speed**: Tells you exactly how fast they respond in milliseconds.
+- **Tracks Reliability (SLA)**: Calculates your real uptime percentage over time.
+- **Zero Bloat / Zero Setup**: No separate database (MySQL/Postgres) and no Node.js needed. It is a single, self-contained executable file that runs in under 4 milliseconds.
+
+---
 
 ## 📸 Overview & Design Aesthetics
 
@@ -28,26 +40,26 @@ BotKeep follows a strict **Linear / Vercel** dark mode design language (`bg-zinc
 
 ```
 +---------------------------------------------------------------------------------------------------+
-|  BotKeep v1.2   |  us-east-1 / prod-cluster-alpha  [Active Fleet]               [Seed Demo Fleet] |
+|  BotKeep v2.0   |  linux/amd64 / edge-node-01  [Node Engine]                 [Seed Demo Fleet]    |
 +-----------------+---------------------------------------------------------------------------------+
 |  [>] Fleet      |  +-------------+  +-------------+  +-------------+  +-------------+             |
-|  [*] Metrics    |  | CPU Load    |  | Memory      |  | Storage     |  | Capacity    |             |
-|  [_] Telemetry  |  | 42.4%       |  | 68.2%       |  | 34.0%       |  | 5 / 5       |             |
+|  [*] Metrics    |  | Capacity    |  | Avg Latency |  | Fleet SLA   |  | Heap Memory |             |
+|  [_] Telemetry  |  | 5 / 5       |  | 32.4ms      |  | 99.8%       |  | 14.2 MB     |             |
 |                 |  +-------------+  +-------------+  +-------------+  +-------------+             |
 |  Cluster Status |                                                                                 |
 |  (*) Healthy    |  [Search Nodes...          ] [Status: All v] [Region: All v]  [+ Deploy Node  ] |
 |                 |  +----------------------------------------------------------------------------+ |
-|  Go 1.23 Native |  | Node / Instance     | Status   | IP / Region    | CPU   | RAM   | Actions  | |
-|                 |  | api-gateway-us1     | (o) Live | 10.0.1.10 (US) | 42.4% | 68.2% | [Stop]   | |
-|                 |  | auth-service-01     | (o) Live | 10.0.1.15 (US) | 24.8% | 45.1% | [Stop]   | |
-|                 |  | worker-queue-node   | (x) Stop | 10.0.1.205(US) |  0.0% |  0.0% | [Start]  | |
+|  Go Runtime     |  | Node / Instance     | Driver   | Status   | Latency & SLA   | Actions      | |
+|  Single-Binary  |  | api.github.com      | HTTP     | (o) Live | 32.4ms [||||||] | [Ping][Stop] | |
+|                 |  | auth-service-01     | Demo     | (o) Live | 24.8ms [||||||] | [Ping][Stop] | |
+|                 |  | worker-queue-node   | Demo     | (x) Stop | 0.0ms  [......] | [Ping][Start]| |
 |                 |  +----------------------------------------------------------------------------+ |
 |                 |                                                                                 |
 |                 |  Live Orchestration Logs [(*) Streaming]                          [Clear Buffer]| |
 |                 |  +----------------------------------------------------------------------------+ |
-|                 |  | 03:04:12 [INFO]  TLS certificate renewed successfully via Let's Encrypt    | |
-|                 |  | 03:04:28 [WARN]  [db-replica-fra] WAL replication lag: 120ms (auto-compact)| |
-|                 |  | 03:04:55 [DEPLOY][api-gateway-us1] State transition triggered: active      | |
+|                 |  | 03:04:12 [PROBE] [api.github.com] HTTP 200 OK (32.4ms) - SLA: 100.0%       | |
+|                 |  | 03:04:28 [INFO]  WAL auto-checkpoint executed (zero lock contention)       | |
+|                 |  | 03:04:55 [DEPLOY][api.github.com] Provisioned (Driver: http)               | |
 |                 |  +----------------------------------------------------------------------------+ |
 +-----------------+---------------------------------------------------------------------------------+
 ```
@@ -106,6 +118,7 @@ flowchart TD
 - **📂 Deep Node Telemetry Drawer**: Click on any node to slide open a dedicated telemetry panel showing CPU, RAM, Latency, and SLA gauges, probe history log, and node audit trails.
 - **🛡️ Non-Intrusive Error Toasts**: Network hiccups or 500 exceptions trigger toast notifications through client-side HTMX event listeners without corrupting the DOM.
 - **📈 Real Go Host Telemetry**: Live Go runtime metrics including goroutine count, allocated heap memory, garbage collection passes, OS architecture, and thread allocations.
+- **🌐 Real DNS Resolution & Rolling SLA**: Zero hardcoded metrics. Real HTTP targets resolve public IP addresses via DNS (`net.LookupIP`), with SLA calculated from live probe history.
 - **🪹 Polished Empty State**: Empty database instances render an illustrative empty state with 1-click **Deploy Demo Fleet** action.
 
 ---

@@ -235,51 +235,49 @@ templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []
 
 templ MetricsGrid(metrics *models.ClusterMetrics) {
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-		<!-- CPU Usage -->
-		@components.MetricCard(components.MetricProps{
-			Title:      "Cluster CPU Load",
-			Value:      fmt.Sprintf("%.1f%%", metrics.AvgCPU),
-			Subtext:    fmt.Sprintf("%d nodes reporting", metrics.ActiveCount),
-			Percentage: int(metrics.AvgCPU),
-			Trend:      "+1.2% /hr",
-			TrendUp:    true,
-			Warning:    metrics.AvgCPU > 70.0,
-			Critical:   metrics.AvgCPU > 85.0,
-		}, components.IconCpu("w-4 h-4 text-zinc-300"))
-
-		<!-- Memory Allocation -->
-		@components.MetricCard(components.MetricProps{
-			Title:      "Memory Allocated",
-			Value:      fmt.Sprintf("%.1f%%", metrics.TotalMemory),
-			Subtext:    fmt.Sprintf("%.1f GB / 128 GB committed", (metrics.TotalMemory/100.0)*128.0),
-			Percentage: int(metrics.TotalMemory),
-			Trend:      "stable",
-			TrendUp:    false,
-			Warning:    metrics.TotalMemory > 75.0,
-			Critical:   metrics.TotalMemory > 90.0,
-		}, components.IconActivity("w-4 h-4 text-zinc-300"))
-
-		<!-- Storage Utilization -->
-		@components.MetricCard(components.MetricProps{
-			Title:      "Storage Footprint",
-			Value:      fmt.Sprintf("%.1f%%", metrics.TotalStorage),
-			Subtext:    fmt.Sprintf("%.1f TB / 2.0 TB NVMe", (metrics.TotalStorage/100.0)*2.0),
-			Percentage: int(metrics.TotalStorage),
-			Trend:      "-0.4% pruned",
-			TrendUp:    false,
-			Warning:    metrics.TotalStorage > 80.0,
-			Critical:   metrics.TotalStorage > 92.0,
-		}, components.IconHardDrive("w-4 h-4 text-zinc-300"))
-
-		<!-- Fleet Node Count -->
+		<!-- Card 1: Active Fleet Capacity -->
 		@components.MetricCard(components.MetricProps{
 			Title:      "Fleet Capacity",
 			Value:      fmt.Sprintf("%d / %d", metrics.ActiveCount, metrics.TotalCount),
-			Subtext:    fmt.Sprintf("%d nodes standby/stopped", metrics.StoppedCount),
+			Subtext:    fmt.Sprintf("%d active • %d stopped", metrics.ActiveCount, metrics.StoppedCount),
 			Percentage: int(float64(metrics.ActiveCount) / float64(max(metrics.TotalCount, 1)) * 100.0),
-			Trend:      "Optimal",
+			Trend:      "Targets",
 			TrendUp:    true,
 		}, components.IconServer("w-4 h-4 text-zinc-300"))
+
+		<!-- Card 2: Average Probe Latency -->
+		@components.MetricCard(components.MetricProps{
+			Title:      "Avg Probe Latency",
+			Value:      fmt.Sprintf("%.1fms", metrics.AvgLatencyMS),
+			Subtext:    "Network roundtrip response",
+			Percentage: min(int((metrics.AvgLatencyMS/200.0)*100.0), 100),
+			Trend:      "Realtime",
+			TrendUp:    metrics.AvgLatencyMS < 80.0,
+			Warning:    metrics.AvgLatencyMS >= 120.0,
+			Critical:   metrics.AvgLatencyMS >= 300.0,
+		}, components.IconActivity("w-4 h-4 text-zinc-300"))
+
+		<!-- Card 3: Fleet Health SLA -->
+		@components.MetricCard(components.MetricProps{
+			Title:      "Fleet Health SLA",
+			Value:      fmt.Sprintf("%.1f%%", metrics.AvgSLA),
+			Subtext:    fmt.Sprintf("Audited across %d fleet nodes", metrics.TotalCount),
+			Percentage: int(metrics.AvgSLA),
+			Trend:      "SLA Window",
+			TrendUp:    metrics.AvgSLA >= 99.0,
+			Warning:    metrics.AvgSLA < 99.0 && metrics.AvgSLA >= 90.0,
+			Critical:   metrics.AvgSLA < 90.0,
+		}, components.IconCheckCircle("w-4 h-4 text-zinc-300"))
+
+		<!-- Card 4: Real Host Go Runtime Memory -->
+		@components.MetricCard(components.MetricProps{
+			Title:      "Engine Heap Memory",
+			Value:      fmt.Sprintf("%.1f MB", metrics.Host.AllocatedMB),
+			Subtext:    fmt.Sprintf("%d goroutines • %d GC cycles", metrics.Host.NumGoroutine, metrics.Host.NumGC),
+			Percentage: min(int((metrics.Host.AllocatedMB/64.0)*100.0), 100),
+			Trend:      metrics.Host.GoVersion,
+			TrendUp:    true,
+		}, components.IconCpu("w-4 h-4 text-zinc-300"))
 	</div>
 }
 

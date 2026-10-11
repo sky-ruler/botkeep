@@ -14,11 +14,13 @@ switch ($Target.ToLower()) {
         templ generate
     }
     "build" {
+        $templCmd = if (Get-Command templ -ErrorAction SilentlyContinue) { "templ" } elseif (Test-Path "$env:USERPROFILE\go\bin\templ.exe") { "$env:USERPROFILE\go\bin\templ.exe" } else { "templ" }
+        $goCmd = if (Get-Command go -ErrorAction SilentlyContinue) { "go" } elseif (Test-Path "C:\Program Files\Go\bin\go.exe") { "C:\Program Files\Go\bin\go.exe" } else { "go" }
         Write-Host "==> Building BotKeep Single-Binary..." -ForegroundColor Green
         npm run build:css
-        templ generate
+        & $templCmd generate
         New-Item -ItemType Directory -Force -Path "bin" | Out-Null
-        go build -ldflags="-s -w" -o bin/botkeep.exe ./cmd/server
+        & $goCmd build -ldflags="-s -w" -o bin/botkeep.exe ./cmd/server
         Write-Host "==> Build complete: bin\botkeep.exe" -ForegroundColor Green
     }
     "run" {

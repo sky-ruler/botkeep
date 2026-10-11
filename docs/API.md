@@ -96,7 +96,11 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
 ### 3. Telemetry & Logs Polling
 
 #### `GET /metrics`
-- **Description**: Calculates and returns the aggregate cluster metrics (Average CPU Load, Committed Memory %, NVMe Storage Footprint, and Fleet Capacity).
+- **Description**: Calculates and returns aggregate fleet telemetry and host runtime metrics:
+  - **Fleet Capacity**: Active vs total registered node count.
+  - **Avg Probe Latency**: Mean roundtrip response time across all active nodes in milliseconds.
+  - **Fleet Health SLA**: Rolling uptime compliance percentage across all monitored fleet nodes.
+  - **Engine Heap Memory**: Real host Go runtime allocated heap memory (MB), active goroutines, and GC cycles.
 - **Polling Interval**: Triggered by client HTMX every 5 seconds (`hx-trigger="every 5s"`).
 - **Response**:
   - `200 OK` (`text/html`): `@pages.MetricsGrid` partial.
