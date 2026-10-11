@@ -1,0 +1,35 @@
+package components
+
+templ Toast(message string, variant string) {
+	<div
+		class={ "flex items-start gap-3 p-4 rounded-lg border shadow-lg backdrop-blur-md transition-all duration-300 transform translate-y-0 opacity-100 max-w-md w-full ",
+			templ.KV("bg-rose-950/80 border-rose-800/80 text-rose-200", variant == "error"),
+			templ.KV("bg-emerald-950/80 border-emerald-800/80 text-emerald-200", variant == "success"),
+			templ.KV("bg-zinc-900/90 border-zinc-700/80 text-zinc-200", variant != "error" && variant != "success"),
+		}
+		role="alert"
+	>
+		<div class="flex-shrink-0 mt-0.5">
+			if variant == "error" {
+				@IconAlertCircle("w-4 h-4 text-rose-400")
+			} else if variant == "success" {
+				@IconCheckCircle("w-4 h-4 text-emerald-400")
+			} else {
+				@IconActivity("w-4 h-4 text-zinc-400")
+			}
+		</div>
+		<div class="flex-1 text-xs font-medium leading-relaxed">
+			{ message }
+		</div>
+		<button
+			type="button"
+			onclick="this.parentElement.remove()"
+			class="flex-shrink-0 text-zinc-400 hover:text-zinc-100 p-0.5 rounded transition-colors cursor-pointer"
+		>
+			<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<line x1="18" y1="6" x2="6" y2="18"></line>
+				<line x1="6" y1="6" x2="18" y2="18"></line>
+			</svg>
+		</button>
+	</div>
+}

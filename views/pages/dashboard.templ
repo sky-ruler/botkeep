@@ -1,0 +1,428 @@
+package pages
+
+import (
+	"fmt"
+	"botkeep/internal/models"
+	"botkeep/views/components"
+	"botkeep/views/layouts"
+)
+
+templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []models.LogEntry) {
+	@layouts.Base("DevOps Fleet Dashboard") {
+		<!-- Drawer Container for Node Inspection -->
+		<div id="drawer-container"></div>
+
+		<!-- Top Action Bar & Header -->
+		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-800/60">
+			<div>
+				<h1 class="text-xl font-semibold tracking-tight text-zinc-100">Cluster Telemetry & Fleet Overview</h1>
+				<p class="text-xs text-zinc-400 mt-1">Real-time edge compute monitoring, state orchestration, and node telemetry.</p>
+			</div>
+			<div class="flex flex-wrap items-center gap-2">
+				<!-- Poll Metrics Button -->
+				<button
+					type="button"
+					hx-get="/metrics"
+					hx-target="#metrics-grid"
+					hx-swap="innerHTML"
+					hx-indicator="#global-indicator"
+					hx-disabled-elt="this"
+					class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors cursor-pointer"
+					title="Refresh cluster metrics"
+				>
+					@components.IconRefresh("w-3.5 h-3.5")
+					<span>Poll Metrics</span>
+				</button>
+
+				<!-- Simulate 500 Error Button to verify Error Toast resilience -->
+				<button
+					type="button"
+					hx-post="/servers/simulate-error"
+					hx-swap="none"
+					hx-disabled-elt="this"
+					class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-colors cursor-pointer"
+					title="Test error toast notification resilience"
+				>
+					@components.IconAlertCircle("w-3.5 h-3.5")
+					<span>Test Error Toast</span>
+				</button>
+
+				<!-- Purge Fleet to test Empty State resilience -->
+				<button
+					type="button"
+					hx-post="/servers/clear"
+					hx-target="#server-table-container"
+					hx-swap="innerHTML"
+					hx-indicator="#global-indicator"
+					hx-disabled-elt="this"
+					class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900/60 text-zinc-400 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-200 transition-colors cursor-pointer"
+					title="Clear database to inspect empty state"
+				>
+					<span>Purge (Test Empty)</span>
+				</button>
+			</div>
+		</div>
+
+		<!-- Section 1: Dashboard Overview Grid (Auto-polled by HTMX every 5s) -->
+		<div
+			id="metrics-grid"
+			hx-get="/metrics"
+			hx-trigger="every 5s"
+			hx-swap="innerHTML"
+		>
+			@MetricsGrid(metrics)
+		</div>
+
+		<!-- Section 2: Server Fleet Table & Node Provisioning -->
+		<div class="space-y-4">
+			<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+				<!-- Search and Status Filtering Form -->
+				<form
+					id="filter-form"
+					hx-get="/servers"
+					hx-target="#server-table-container"
+					hx-swap="innerHTML"
+					hx-trigger="submit, keyup changed delay:250ms from:#search-input, change from:#filter-status, change from:#filter-region"
+					class="flex flex-wrap items-center gap-2 flex-1"
+				>
+					<div class="relative w-full sm:w-64">
+						<input
+							type="text"
+							id="search-input"
+							name="q"
+							placeholder="Search nodes by name, ID, IP..."
+							class="w-full pl-8 pr-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans"
+						/>
+						<div class="absolute left-2.5 top-2 text-zinc-500 pointer-events-none">
+							<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<circle cx="11" cy="11" r="8"></circle>
+								<line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+							</svg>
+						</div>
+					</div>
+
+					<select
+						id="filter-status"
+						name="status"
+						class="px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
+					>
+						<option value="all">All Statuses</option>
+						<option value="active">Active</option>
+						<option value="stopped">Stopped</option>
+						<option value="deploying">Deploying</option>
+					</select>
+
+					<select
+						id="filter-region"
+						name="region"
+						class="px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
+					>
+						<option value="all">All Regions</option>
+						<option value="us-east-1">us-east-1</option>
+						<option value="eu-central-1">eu-central-1</option>
+						<option value="ap-southeast-1">ap-southeast-1</option>
+					</select>
+				</form>
+
+				<!-- Quick Deploy Node Inline Bar -->
+				<form
+					hx-post="/servers/new"
+					hx-target="#server-table-container"
+					hx-swap="innerHTML"
+					hx-indicator="#deploy-indicator"
+					hx-on::after-request="if(event.detail.successful) this.reset()"
+					class="flex items-center gap-2"
+				>
+					<input
+						type="text"
+						name="name"
+						placeholder="Node name (e.g. redis-node-02)"
+						required
+						class="w-48 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans"
+					/>
+					<select
+						name="region"
+						class="px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
+					>
+						<option value="us-east-1">us-east-1</option>
+						<option value="eu-central-1">eu-central-1</option>
+						<option value="ap-southeast-1">ap-southeast-1</option>
+					</select>
+					<button
+						type="submit"
+						class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 text-zinc-950 hover:bg-white active:bg-zinc-200 transition-colors shadow-sm cursor-pointer whitespace-nowrap"
+					>
+						<span id="deploy-indicator" class="htmx-indicator">
+							@components.IconSpinner("w-3 h-3 text-zinc-900")
+						</span>
+						@components.IconPlus("w-3.5 h-3.5")
+						<span>Deploy</span>
+					</button>
+				</form>
+			</div>
+
+			<!-- Dynamic Server Table Container -->
+			<div id="server-table-container">
+				@ServerTable(servers)
+			</div>
+		</div>
+
+		<!-- Section 3: Live Telemetry Logs Terminal Panel (Auto-polled by HTMX every 4s) -->
+		<div class="space-y-4">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-2">
+					<h2 class="text-sm font-semibold tracking-tight text-zinc-100">Live Orchestration Logs</h2>
+					<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-zinc-800/80 text-emerald-400 border border-zinc-700">
+						<span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+						Streaming
+					</span>
+				</div>
+				<button
+					type="button"
+					hx-post="/logs/clear"
+					hx-target="#logs-stream"
+					hx-swap="innerHTML"
+					class="text-xs text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+				>
+					Clear Buffer
+				</button>
+			</div>
+
+			<!-- Terminal Window Frame -->
+			<div class="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
+				<!-- Terminal Window Title Bar -->
+				<div class="h-9 px-4 bg-zinc-900/80 border-b border-zinc-800/80 flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<div class="flex gap-1.5">
+							<span class="w-2.5 h-2.5 rounded-full bg-zinc-700/80"></span>
+							<span class="w-2.5 h-2.5 rounded-full bg-zinc-700/80"></span>
+							<span class="w-2.5 h-2.5 rounded-full bg-zinc-700/80"></span>
+						</div>
+						<span class="ml-2 font-mono text-[11px] text-zinc-400">telemetry-agent@botkeep-edge:~$ journalctl -u cluster-orchestrator -f</span>
+					</div>
+					<div class="flex items-center gap-2">
+						<span class="text-[10px] font-mono text-zinc-500">buffer: 20 lines</span>
+					</div>
+				</div>
+
+				<!-- Terminal Body -->
+				<div
+					id="logs-stream"
+					hx-get="/logs"
+					hx-trigger="every 4s"
+					hx-swap="innerHTML"
+					class="p-4 font-mono text-xs leading-relaxed max-h-72 overflow-y-auto space-y-1.5 bg-canvas select-text"
+				>
+					@LogsStream(logs)
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ MetricsGrid(metrics *models.ClusterMetrics) {
+	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+		<!-- CPU Usage -->
+		@components.MetricCard(components.MetricProps{
+			Title:      "Cluster CPU Load",
+			Value:      fmt.Sprintf("%.1f%%", metrics.AvgCPU),
+			Subtext:    fmt.Sprintf("%d nodes reporting", metrics.ActiveCount),
+			Percentage: int(metrics.AvgCPU),
+			Trend:      "+1.2% /hr",
+			TrendUp:    true,
+			Warning:    metrics.AvgCPU > 70.0,
+			Critical:   metrics.AvgCPU > 85.0,
+		}, components.IconCpu("w-4 h-4 text-zinc-300"))
+
+		<!-- Memory Allocation -->
+		@components.MetricCard(components.MetricProps{
+			Title:      "Memory Allocated",
+			Value:      fmt.Sprintf("%.1f%%", metrics.TotalMemory),
+			Subtext:    fmt.Sprintf("%.1f GB / 128 GB committed", (metrics.TotalMemory/100.0)*128.0),
+			Percentage: int(metrics.TotalMemory),
+			Trend:      "stable",
+			TrendUp:    false,
+			Warning:    metrics.TotalMemory > 75.0,
+			Critical:   metrics.TotalMemory > 90.0,
+		}, components.IconActivity("w-4 h-4 text-zinc-300"))
+
+		<!-- Storage Utilization -->
+		@components.MetricCard(components.MetricProps{
+			Title:      "Storage Footprint",
+			Value:      fmt.Sprintf("%.1f%%", metrics.TotalStorage),
+			Subtext:    fmt.Sprintf("%.1f TB / 2.0 TB NVMe", (metrics.TotalStorage/100.0)*2.0),
+			Percentage: int(metrics.TotalStorage),
+			Trend:      "-0.4% pruned",
+			TrendUp:    false,
+			Warning:    metrics.TotalStorage > 80.0,
+			Critical:   metrics.TotalStorage > 92.0,
+		}, components.IconHardDrive("w-4 h-4 text-zinc-300"))
+
+		<!-- Fleet Node Count -->
+		@components.MetricCard(components.MetricProps{
+			Title:      "Fleet Capacity",
+			Value:      fmt.Sprintf("%d / %d", metrics.ActiveCount, metrics.TotalCount),
+			Subtext:    fmt.Sprintf("%d nodes standby/stopped", metrics.StoppedCount),
+			Percentage: int(float64(metrics.ActiveCount) / float64(max(metrics.TotalCount, 1)) * 100.0),
+			Trend:      "Optimal",
+			TrendUp:    true,
+		}, components.IconServer("w-4 h-4 text-zinc-300"))
+	</div>
+}
+
+templ ServerTable(servers []models.Server) {
+	if len(servers) == 0 {
+		@components.EmptyState(
+			"No server instances active",
+			"You do not have any registered nodes matching your query. Seed demo servers or provision an edge instance.",
+			"Deploy Demo Fleet",
+			"/servers/seed",
+		)
+	} else {
+		<div class="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/40 shadow-sm">
+			<table class="min-w-full divide-y divide-zinc-800 text-left text-xs">
+				<thead>
+					<tr class="bg-zinc-900/80 text-zinc-400 font-medium">
+						<th scope="col" class="py-3 pl-4 pr-3">Node / Instance</th>
+						<th scope="col" class="px-3 py-3">Status</th>
+						<th scope="col" class="px-3 py-3">Network / Region</th>
+						<th scope="col" class="px-3 py-3">CPU</th>
+						<th scope="col" class="px-3 py-3">RAM</th>
+						<th scope="col" class="px-3 py-3">Uptime</th>
+						<th scope="col" class="py-3 pl-3 pr-4 text-right">Actions</th>
+					</tr>
+				</thead>
+				<tbody id="server-table-body" class="divide-y divide-zinc-800/60 font-mono">
+					for _, s := range servers {
+						@ServerRow(s)
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+templ ServerRow(s models.Server) {
+	<tr id={ "server-row-" + s.ID } class="hover:bg-zinc-800/30 transition-colors group">
+		<!-- Name & ID (Clickable to open inspector drawer) -->
+		<td class="py-3.5 pl-4 pr-3 font-sans">
+			<div class="flex items-center gap-3">
+				<div class="w-8 h-8 rounded-lg bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-300 group-hover:border-zinc-500 transition-colors">
+					@components.IconServer("w-4 h-4")
+				</div>
+				<div>
+					<button
+						type="button"
+						hx-get={ "/servers/" + s.ID + "/details" }
+						hx-target="#drawer-container"
+						hx-swap="innerHTML"
+						class="font-medium text-zinc-100 hover:text-white flex items-center gap-2 cursor-pointer text-left focus:outline-none"
+						title="Inspect node telemetry"
+					>
+						<span>{ s.Name }</span>
+						<span id={ "indicator-" + s.ID } class="htmx-indicator items-center">
+							@components.IconSpinner("w-3.5 h-3.5 text-zinc-400")
+						</span>
+					</button>
+					<div class="text-[11px] text-zinc-500 font-mono">{ s.ID }</div>
+				</div>
+			</div>
+		</td>
+
+		<!-- Status Badge -->
+		<td class="px-3 py-3.5 font-sans">
+			@components.ServerStatusBadge(s.Status)
+		</td>
+
+		<!-- Network / Region -->
+		<td class="px-3 py-3.5">
+			<div class="text-zinc-200">{ s.IPAddress }</div>
+			<div class="text-[11px] text-zinc-500 font-sans">{ s.Region }</div>
+		</td>
+
+		<!-- CPU Metric -->
+		<td class="px-3 py-3.5">
+			if s.Status == "stopped" {
+				<span class="text-zinc-600">0.0%</span>
+			} else {
+				<div class="flex items-center gap-2">
+					<div class="w-12 bg-zinc-800 rounded-full h-1 overflow-hidden">
+						<div class="bg-zinc-300 h-1 rounded-full" style={ fmt.Sprintf("width: %d%%", int(s.CPUUsage)) }></div>
+					</div>
+					<span class="text-zinc-300">{ fmt.Sprintf("%.1f%%", s.CPUUsage) }</span>
+				</div>
+			}
+		</td>
+
+		<!-- RAM Metric -->
+		<td class="px-3 py-3.5">
+			if s.Status == "stopped" {
+				<span class="text-zinc-600">0.0%</span>
+			} else {
+				<div class="flex items-center gap-2">
+					<div class="w-12 bg-zinc-800 rounded-full h-1 overflow-hidden">
+						<div class="bg-zinc-400 h-1 rounded-full" style={ fmt.Sprintf("width: %d%%", int(s.MemoryUsage)) }></div>
+					</div>
+					<span class="text-zinc-300">{ fmt.Sprintf("%.1f%%", s.MemoryUsage) }</span>
+				</div>
+			}
+		</td>
+
+		<!-- Uptime -->
+		<td class="px-3 py-3.5 text-zinc-400 text-[11px]">
+			{ s.Uptime }
+		</td>
+
+		<!-- Action Triggers -->
+		<td class="py-3.5 pl-3 pr-4 text-right font-sans">
+			<div class="inline-flex items-center gap-1.5">
+				if s.Status == "stopped" {
+					@components.ActionButton("start", s.ID, false)
+				} else {
+					@components.ActionButton("stop", s.ID, false)
+					@components.ActionButton("restart", s.ID, false)
+				}
+				<!-- Inspect Drawer Trigger -->
+				<button
+					type="button"
+					hx-get={ "/servers/" + s.ID + "/details" }
+					hx-target="#drawer-container"
+					hx-swap="innerHTML"
+					class="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
+					title="Inspect details"
+				>
+					<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<circle cx="12" cy="12" r="1"></circle>
+						<circle cx="19" cy="12" r="1"></circle>
+						<circle cx="5" cy="12" r="1"></circle>
+					</svg>
+				</button>
+			</div>
+		</td>
+	</tr>
+}
+
+templ LogsStream(logs []models.LogEntry) {
+	if len(logs) == 0 {
+		<div class="text-zinc-500 py-6 text-center">No recent telemetry events recorded in buffer.</div>
+	} else {
+		for _, l := range logs {
+			<div class="flex items-start gap-3 hover:bg-zinc-900/60 px-2 py-0.5 rounded transition-colors">
+				<span class="text-zinc-500 flex-shrink-0 text-[11px]">{ l.CreatedAt.Format("15:04:05.000") }</span>
+				switch l.Level {
+					case "INFO":
+						<span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20 flex-shrink-0">INFO</span>
+					case "WARN":
+						<span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex-shrink-0">WARN</span>
+					case "ERROR":
+						<span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 flex-shrink-0">ERROR</span>
+					case "DEPLOY":
+						<span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0">DEPLOY</span>
+					default:
+						<span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-zinc-800 text-zinc-400 flex-shrink-0">{ l.Level }</span>
+				}
+				<span class="text-zinc-300 break-all">{ l.Message }</span>
+			</div>
+		}
+	}
+}

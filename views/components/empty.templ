@@ -1,0 +1,46 @@
+package components
+
+templ EmptyState(title string, description string, actionText string, actionPost string) {
+	<div class="flex flex-col items-center justify-center py-16 px-6 text-center bg-zinc-900/30 border border-dashed border-zinc-800 rounded-xl">
+		<div class="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 mb-5 shadow-inner">
+			@IconServer("w-8 h-8 text-zinc-400")
+			<span class="absolute -top-1 -right-1 flex h-3 w-3">
+				<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75"></span>
+				<span class="relative inline-flex rounded-full h-3 w-3 bg-zinc-500"></span>
+			</span>
+		</div>
+
+		<h3 class="text-base font-semibold text-zinc-100 tracking-tight">
+			if title != "" {
+				{ title }
+			} else {
+				No servers deployed
+			}
+		</h3>
+
+		<p class="mt-1.5 text-sm text-zinc-400 max-w-sm">
+			if description != "" {
+				{ description }
+			} else {
+				Get started by provisioning your first high-performance server node or seeding simulated fleet instances.
+			}
+		</p>
+
+		if actionText != "" && actionPost != "" {
+			<div class="mt-6 flex items-center gap-3">
+				<button
+					type="button"
+					hx-post={ actionPost }
+					hx-target="#server-table-container"
+					hx-swap="innerHTML"
+					hx-indicator="#global-indicator"
+					hx-disabled-elt="this"
+					class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-zinc-100 text-zinc-950 hover:bg-white active:bg-zinc-200 transition-colors shadow-sm cursor-pointer"
+				>
+					@IconPlus("w-4 h-4")
+					<span>{ actionText }</span>
+				</button>
+			</div>
+		}
+	</div>
+}

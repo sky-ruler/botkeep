@@ -1,0 +1,185 @@
+package layouts
+
+import (
+	"botkeep/views/components"
+)
+
+templ Base(title string) {
+	<!DOCTYPE html>
+	<html lang="en" class="dark h-full">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title } — BotKeep DevOps</title>
+			<!-- Google Fonts: Inter -->
+			<link rel="preconnect" href="https://fonts.googleapis.com"/>
+			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+			<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+			<!-- Compiled Tailwind CSS & HTMX -->
+			<link rel="stylesheet" href="/static/css/output.css"/>
+			<script src="/static/js/htmx.min.js"></script>
+		</head>
+		<body class="h-full bg-zinc-950 text-zinc-100 font-sans antialiased selection:bg-zinc-800 selection:text-zinc-100 flex overflow-hidden" hx-boost="true">
+			<!-- Toast Notification Root Container -->
+			<div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-auto"></div>
+
+			<!-- Left Nav Sidebar -->
+			<aside class="w-64 flex-shrink-0 bg-zinc-900/60 border-r border-zinc-800 flex flex-col justify-between">
+				<div>
+					<!-- App Brand -->
+					<div class="h-16 flex items-center px-6 border-b border-zinc-800/80 gap-3">
+						<div class="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-sm shadow-sm">
+							@components.IconLayers("w-4 h-4 text-zinc-950")
+						</div>
+						<div>
+							<div class="flex items-center gap-2">
+								<span class="text-sm font-semibold tracking-tight text-zinc-100">BotKeep</span>
+								<span class="px-1.5 py-0.2 text-[10px] font-mono rounded bg-zinc-800 text-zinc-400 border border-zinc-700">v1.2</span>
+							</div>
+							<p class="text-[11px] text-zinc-400">DevOps Fleet Manager</p>
+						</div>
+					</div>
+
+					<!-- Navigation Links -->
+					<nav class="px-3 py-4 space-y-1">
+						<a
+							href="/"
+							class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md bg-zinc-800/90 text-zinc-100 border border-zinc-700/60 shadow-sm transition-colors"
+						>
+							@components.IconServer("w-4 h-4 text-zinc-300")
+							<span>Fleet Overview</span>
+						</a>
+						<a
+							href="#metrics"
+							class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 transition-colors"
+						>
+							@components.IconActivity("w-4 h-4 text-zinc-400")
+							<span>Cluster Metrics</span>
+						</a>
+						<a
+							href="#logs"
+							class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 transition-colors"
+						>
+							@components.IconTerminal("w-4 h-4 text-zinc-400")
+							<span>Live Telemetry</span>
+						</a>
+					</nav>
+				</div>
+
+				<!-- Sidebar Footer / Cluster Status -->
+				<div class="p-4 border-t border-zinc-800/80 bg-zinc-900/30">
+					<div class="flex items-center justify-between mb-2">
+						<span class="text-[11px] font-medium text-zinc-400">Cluster Status</span>
+						<span class="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
+							<span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+							Healthy
+						</span>
+					</div>
+					<div class="text-[10px] text-zinc-400 font-mono flex items-center justify-between">
+						<span>Runtime: Single-Binary</span>
+						<span>Go 1.23</span>
+					</div>
+				</div>
+			</aside>
+
+			<!-- Main Application Viewport -->
+			<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+				<!-- Top Nav Header -->
+				<header class="h-16 flex-shrink-0 bg-zinc-900/40 border-b border-zinc-800 flex items-center justify-between px-8 backdrop-blur-md">
+					<div class="flex items-center gap-4">
+						<div class="flex items-center gap-2 text-xs text-zinc-400">
+							<span>us-east-1</span>
+							<span>/</span>
+							<span class="text-zinc-200 font-medium">prod-cluster-alpha</span>
+						</div>
+						@components.GenericBadge("Active Fleet", "info")
+					</div>
+
+					<div class="flex items-center gap-3">
+						<!-- Localized / Global HTMX Activity Indicator -->
+						<div id="global-indicator" class="htmx-indicator items-center gap-2 text-xs text-zinc-400">
+							@components.IconSpinner("w-3.5 h-3.5 text-zinc-300")
+							<span class="font-mono text-[11px]">Syncing...</span>
+						</div>
+
+						<!-- Quick Seed / Reset Fleet Button -->
+						<button
+							type="button"
+							hx-post="/servers/seed"
+							hx-target="#server-table-container"
+							hx-swap="innerHTML"
+							hx-indicator="#global-indicator"
+							hx-disabled-elt="this"
+							class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors cursor-pointer"
+							title="Seed demo server fleet"
+						>
+							@components.IconRefresh("w-3.5 h-3.5")
+							<span>Seed Demo Fleet</span>
+						</button>
+					</div>
+				</header>
+
+				<!-- Scrollable Main Content -->
+				<main class="flex-1 overflow-y-auto px-8 py-6 space-y-8 bg-zinc-950">
+					{ children... }
+				</main>
+			</div>
+
+			<!-- HTMX Error Listener & Toast Dispatcher Script -->
+			<script>
+				(function() {
+					function showToast(message, type) {
+						var container = document.getElementById('toast-container');
+						if (!container) return;
+
+						var toast = document.createElement('div');
+						var bgBorder = type === 'error' 
+							? 'bg-rose-950/90 border-rose-800/80 text-rose-200' 
+							: 'bg-zinc-900/90 border-zinc-700/80 text-zinc-200';
+						
+						toast.className = 'flex items-start gap-3 p-3.5 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 transform translate-y-2 opacity-0 ' + bgBorder;
+						toast.innerHTML = 
+							'<div class="flex-shrink-0 mt-0.5">' +
+								'<svg class="w-4 h-4 ' + (type === 'error' ? 'text-rose-400' : 'text-zinc-400') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>' +
+							'</div>' +
+							'<div class="flex-1 text-xs font-medium leading-relaxed">' + message + '</div>' +
+							'<button type="button" class="text-zinc-400 hover:text-zinc-100 p-0.5" onclick="this.parentElement.remove()">' +
+								'<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+							'</button>';
+
+						container.appendChild(toast);
+						requestAnimationFrame(function() {
+							toast.classList.remove('translate-y-2', 'opacity-0');
+						});
+
+						setTimeout(function() {
+							toast.classList.add('opacity-0', 'translate-y-2');
+							setTimeout(function() { toast.remove(); }, 300);
+						}, 4500);
+					}
+
+					document.body.addEventListener('htmx:responseError', function(evt) {
+						var status = evt.detail.xhr.status;
+						var statusText = evt.detail.xhr.statusText || 'Server Error';
+						var respText = evt.detail.xhr.responseText;
+						var msg = 'Request failed (' + status + ' ' + statusText + ')';
+						if (respText && respText.length < 100 && !respText.includes('<')) {
+							msg += ': ' + respText;
+						}
+						showToast(msg, 'error');
+					});
+
+					document.body.addEventListener('htmx:sendError', function(evt) {
+						showToast('Network timeout or connection refused. Check server connectivity.', 'error');
+					});
+
+					document.body.addEventListener('htmx:timeout', function(evt) {
+						showToast('DevOps server action timed out. Please retry.', 'error');
+					});
+
+					window.showDevOpsToast = showToast;
+				})();
+			</script>
+		</body>
+	</html>
+}

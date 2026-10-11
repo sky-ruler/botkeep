@@ -1,0 +1,168 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"io/fs"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+
+	"botkeep"
+	"botkeep/internal/handlers"
+	"botkeep/internal/models"
+)
+
+var (
+	version = "1.2.0"
+	commit  = "edge"
+)
+
+func main() {
+	flagPort := flag.String("port", "", "Server HTTP listening port (default: 8080 or $PORT)")
+	flagDB := flag.String("db", "", "SQLite database filepath (default: botkeep.db or $DB_PATH)")
+	flagVersion := flag.Bool("version", false, "Print BotKeep version information and exit")
+	flagSeed := flag.Bool("seed", false, "Force re-seed demo server fleet on startup")
+	flag.Parse()
+
+	if *flagVersion {
+		fmt.Printf("BotKeep DevOps Fleet Manager v%s (%s)\n", version, commit)
+		fmt.Println("Built with Go, HTMX, templ, Tailwind CSS & SQLite")
+		os.Exit(0)
+	}
+
+	port := *flagPort
+	if port == "" {
+		port = os.Getenv("PORT")
+	}
+	if port == "" {
+		port = "8080"
+	}
+
+	dbPath := *flagDB
+	if dbPath == "" {
+		dbPath = os.Getenv("DB_PATH")
+	}
+	if dbPath == "" {
+		dbPath = "botkeep.db"
+	}
+
+	log.Printf("[Init] Starting BotKeep Single-Binary Engine v%s on port :%s", version, port)
+	log.Printf("[Init] Initializing embedded SQLite database at %s", dbPath)
+
+	// Initialize SQLite with WAL pragmas & embedded schema
+	db, err := models.NewDB(dbPath)
+	if err != nil {
+		log.Fatalf("[Fatal] Failed to initialize SQLite storage: %v", err)
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("[Warn] Error closing SQLite database: %v", err)
+		}
+	}()
+
+	if *flagSeed {
+		log.Println("[Init] -seed flag specified: seeding demo fleet instances")
+		_ = db.SeedDemoFleet()
+	}
+
+	// Initialize Chi Router
+	r := chi.NewRouter()
+
+	// High-performance middleware stack
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.Compress(5))
+
+	// Serve embedded static files (Tailwind CSS, HTMX script) directly from binary
+	staticSubFS, err := fs.Sub(botkeep.StaticFS, "static")
+	if err != nil {
+		log.Fatalf("[Fatal] Failed to create embedded static sub-filesystem: %v", err)
+	}
+
+	fileServer := http.FileServer(http.FS(staticSubFS))
+	r.Get("/static/*", func(w http.ResponseWriter, r *http.Request) {
+		// Set caching headers for production performance
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		http.StripPrefix("/static/", fileServer).ServeHTTP(w, r)
+	})
+
+	// Handlers
+	h := handlers.NewHandler(db)
+
+	// Application routes
+	r.Get("/", h.Dashboard)
+	r.Get("/servers", h.GetServers)
+	r.Post("/servers/new", h.CreateServer)
+	r.Post("/servers/clear", h.ClearFleet)
+	r.Post("/servers/simulate-error", h.SimulateError)
+	r.Get("/servers/{id}/details", h.GetServerDetails)
+	r.Delete("/servers/{id}", h.DeleteServer)
+	r.Post("/servers/{id}/delete", h.DeleteServer)
+	r.Post("/servers/{id}/start", h.StartServer)
+	r.Post("/servers/{id}/stop", h.StopServer)
+	r.Post("/servers/{id}/restart", h.RestartServer)
+	r.Post("/servers/seed", h.SeedFleet)
+	r.Get("/metrics", h.GetMetrics)
+	r.Get("/logs", h.GetLogs)
+	r.Post("/logs/clear", h.ClearLogs)
+
+	// Health check endpoint
+	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	})
+
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 20 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	// Server startup banner
+	fmt.Println("==================================================================")
+	fmt.Println("  ⚡ BOTKEEP DEVOPS SERVER MANAGEMENT DASHBOARD")
+	fmt.Println("  Runtime: Ultra-lean single-binary executable")
+	fmt.Println("  Architecture: Go 1.23 + HTMX 2.0 + templ + Tailwind CSS + SQLite")
+	fmt.Printf("  Dashboard URL: http://localhost:%s\n", port)
+	fmt.Println("==================================================================")
+
+	// Start server in background goroutine
+	serverErrors := make(chan error, 1)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErrors <- err
+		}
+	}()
+
+	// Graceful shutdown handling
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErrors:
+		log.Fatalf("[Fatal] Server failed to start: %v", err)
+	case sig := <-shutdown:
+		log.Printf("[Shutdown] Signal %v received. Commencing graceful shutdown...", sig)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Printf("[Shutdown] Graceful shutdown timed out, forcing exit: %v", err)
+			_ = srv.Close()
+		}
+		log.Println("[Shutdown] Server gracefully terminated.")
+	}
+}

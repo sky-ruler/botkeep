@@ -1,0 +1,108 @@
+name: CI & Multi-Platform Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    name: Test & Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          npm ci
+          go install github.com/a-h/templ/cmd/templ@v0.3.833
+
+      - name: Generate Templ & Build CSS
+        run: |
+          npm run build:css
+          templ generate
+
+      - name: Run Tests with Race Detector
+        run: go test -v -race ./...
+
+      - name: Verify Git Cleanliness
+        run: |
+          git status --porcelain
+          test -z "$(git status --porcelain)" || (echo "Uncommitted changes after build/templ generate" && exit 1)
+
+  build-artifacts:
+    name: Cross-Platform Single-Binary Compilation
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            artifact: botkeep-linux-amd64
+          - os: linux
+            arch: arm64
+            artifact: botkeep-linux-arm64
+          - os: darwin
+            arch: arm64
+            artifact: botkeep-darwin-arm64
+          - os: darwin
+            arch: amd64
+            artifact: botkeep-darwin-amd64
+          - os: windows
+            arch: amd64
+            artifact: botkeep-windows-amd64.exe
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Build Tools
+        run: |
+          npm ci
+          go install github.com/a-h/templ/cmd/templ@v0.3.833
+
+      - name: Generate Code & Assets
+        run: |
+          npm run build:css
+          templ generate
+
+      - name: Build Single Binary
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+        run: |
+          mkdir -p dist
+          go build -ldflags="-s -w" -o dist/${{ matrix.artifact }} ./cmd/server
+
+      - name: Upload Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
