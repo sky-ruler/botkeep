@@ -17,7 +17,7 @@
   <b>Bypass JavaScript SPA bloat.</b> BotKeep delivers an ultra-fast, single-executable DevOps fleet dashboard combining <b>Go</b>, <b>HTMX</b>, <b>templ</b>, and <b>Tailwind CSS</b> with embedded pure-Go SQLite.
 </p>
 
-[Quickstart](#-quickstart) • [Explained (ELI5 to Pro)](docs/EXPLAINED.md) • [Architecture](docs/ARCHITECTURE.md) • [API Reference](docs/API.md) • [Features](#-key-features) • [Configuration](#-configuration) • [Benchmarks](#-resource-footprint--benchmarks)
+[Quickstart](#-quickstart) • [Explained (ELI5 to Pro)](docs/EXPLAINED.md) • [Architecture](docs/ARCHITECTURE.md) • [API Reference](docs/API.md) • [USP & Roadmap](docs/ROADMAP_USP.md) • [Features](#-key-features) • [Configuration](#-configuration)
 
 ---
 
