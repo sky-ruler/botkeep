@@ -816,3 +816,132 @@ func sanitizeID(id string) string {
 	id = strings.ReplaceAll(id, "\\", "")
 	return id
 }
+
+// SatellitesJSON returns all registered edge satellites and their statuses.
+func (h *Handler) SatellitesJSON(w http.ResponseWriter, r *http.Request) {
+	sats, err := h.db.GetSatellites()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	onlineCount := 0
+	regions := make(map[string]int)
+	for _, s := range sats {
+		if s.Status == "online" {
+			onlineCount++
+		}
+		regions[s.Region]++
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"satellites":   sats,
+		"total":        len(sats),
+		"online_count": onlineCount,
+		"regions":      regions,
+	})
+}
+
+// SatelliteHeartbeat registers or updates a satellite edge agent.
+func (h *Handler) SatelliteHeartbeat(w http.ResponseWriter, r *http.Request) {
+	var sat models.Satellite
+	if err := json.NewDecoder(r.Body).Decode(&sat); err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	if sat.ID == "" {
+		http.Error(w, "Satellite ID is required", http.StatusBadRequest)
+		return
+	}
+	if sat.Region == "" {
+		sat.Region = "default"
+	}
+	if sat.IPAddress == "" {
+		sat.IPAddress = r.RemoteAddr
+	}
+
+	if err := h.db.RegisterOrUpdateSatellite(sat); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status":  "registered",
+		"id":      sat.ID,
+		"message": "Satellite heartbeat recorded successfully",
+	})
+}
+
+// SatelliteReport ingests probe metrics reported by satellite edge agents.
+func (h *Handler) SatelliteReport(w http.ResponseWriter, r *http.Request) {
+	var report struct {
+		SatelliteID string                  `json:"satellite_id"`
+		Region      string                  `json:"region"`
+		Probes      []models.SatelliteProbe `json:"probes"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
+		http.Error(w, "Invalid probe report JSON", http.StatusBadRequest)
+		return
+	}
+
+	for _, p := range report.Probes {
+		if p.SatelliteID == "" {
+			p.SatelliteID = report.SatelliteID
+		}
+		if p.Region == "" {
+			p.Region = report.Region
+		}
+		_ = h.db.RecordSatelliteProbe(p)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status":   "ok",
+		"recorded": len(report.Probes),
+	})
+}
+
+// SatelliteTargets returns list of active fleet servers that satellite agents should probe.
+func (h *Handler) SatelliteTargets(w http.ResponseWriter, r *http.Request) {
+	servers, err := h.db.GetAllServers()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	type ProbeTarget struct {
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		Driver      string `json:"driver"`
+		EndpointURL string `json:"endpoint_url"`
+		Protocol    string `json:"protocol"`
+		Region      string `json:"region"`
+	}
+
+	var targets []ProbeTarget
+	for _, s := range servers {
+		if s.Status == "active" || s.Driver == "http" || s.Driver == "tcp" {
+			targets = append(targets, ProbeTarget{
+				ID:          s.ID,
+				Name:        s.Name,
+				Driver:      s.Driver,
+				EndpointURL: s.EndpointURL,
+				Protocol:    s.Protocol,
+				Region:      s.Region,
+			})
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"targets": targets,
+		"count":   len(targets),
+	})
+}
+

@@ -297,3 +297,110 @@ func TestNotificationChannels(t *testing.T) {
 		t.Errorf("Expected error fetching deleted channel, got nil")
 	}
 }
+
+func TestSatelliteMeshAndConsensus(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// 1. Verify seed satellites
+	sats, err := db.GetSatellites()
+	if err != nil {
+		t.Fatalf("GetSatellites failed: %v", err)
+	}
+	if len(sats) < 3 {
+		t.Errorf("Expected at least 3 seed satellites, got %d", len(sats))
+	}
+
+	// 2. Register new satellite
+	customSat := Satellite{
+		ID:             "sat-ap-syd-01",
+		Name:           "Sydney Edge Satellite",
+		Region:         "ap-southeast-2",
+		IPAddress:      "198.51.100.200",
+		Status:         "online",
+		LatencyToHubMS: 165.2,
+		Version:        "2.0.0",
+	}
+	err = db.RegisterOrUpdateSatellite(customSat)
+	if err != nil {
+		t.Fatalf("RegisterOrUpdateSatellite failed: %v", err)
+	}
+
+	// Verify it shows up
+	sats, err = db.GetSatellites()
+	if err != nil {
+		t.Fatalf("GetSatellites failed: %v", err)
+	}
+	found := false
+	for _, s := range sats {
+		if s.ID == "sat-ap-syd-01" {
+			found = true
+			if s.Region != "ap-southeast-2" {
+				t.Errorf("Expected region ap-southeast-2, got %s", s.Region)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("Newly registered satellite sat-ap-syd-01 not found")
+	}
+
+	// 3. Record Satellite Probes for a test server
+	servers, err := db.GetAllServers()
+	if err != nil || len(servers) == 0 {
+		t.Fatalf("No servers found: %v", err)
+	}
+	targetID := servers[0].ID
+
+	// Multi-region probes: US passes, EU fails, AP fails -> Consensus down!
+	_ = db.RecordSatelliteProbe(SatelliteProbe{
+		SatelliteID: "sat-us-east-01",
+		ServerID:    targetID,
+		Region:      "us-east-1",
+		LatencyMS:   22.4,
+		StatusCode:  200,
+		Success:     true,
+	})
+	_ = db.RecordSatelliteProbe(SatelliteProbe{
+		SatelliteID:  "sat-eu-fra-01",
+		ServerID:     targetID,
+		Region:       "eu-central-1",
+		LatencyMS:    0,
+		StatusCode:   503,
+		Success:      false,
+		ErrorMessage: "i/o timeout across Frankfurt transit",
+	})
+	_ = db.RecordSatelliteProbe(SatelliteProbe{
+		SatelliteID:  "sat-ap-tokyo-01",
+		ServerID:     targetID,
+		Region:       "ap-northeast-1",
+		LatencyMS:    0,
+		StatusCode:   503,
+		Success:      false,
+		ErrorMessage: "connection refused",
+	})
+
+	// 4. Test EvaluateConsensus
+	isDown, failingRegions, total, err := db.EvaluateConsensus(targetID)
+	if err != nil {
+		t.Fatalf("EvaluateConsensus failed: %v", err)
+	}
+	if !isDown {
+		t.Errorf("Expected consensus down (2 regions failed), got false")
+	}
+	if len(failingRegions) != 2 {
+		t.Errorf("Expected 2 failing regions, got %d (%v)", len(failingRegions), failingRegions)
+	}
+	if total < 3 {
+		t.Errorf("Expected at least 3 total reporting regions, got %d", total)
+	}
+
+	// 5. Verify server regional summaries
+	srv, err := db.GetServerByID(targetID)
+	if err != nil {
+		t.Fatalf("GetServerByID failed: %v", err)
+	}
+	if len(srv.RegionalProbes) == 0 {
+		t.Errorf("Expected regional probe summaries on Server, got 0")
+	}
+}
+

@@ -148,6 +148,36 @@ templ ServerDetailDrawer(s models.Server, logs []models.LogEntry) {
 					</div>
 				</div>
 
+				<!-- Multi-Region Satellite Telemetry -->
+				if len(s.RegionalProbes) > 0 {
+					<div class="space-y-2">
+						<div class="flex items-center justify-between">
+							<h4 class="text-xs font-semibold text-zinc-300">Multi-Region Edge Consensus</h4>
+							<span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">Consensus Active</span>
+						</div>
+						<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+							for _, rp := range s.RegionalProbes {
+								<div class="p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-800">
+									<div class="flex items-center justify-between">
+										<span class="text-[10px] uppercase font-mono text-zinc-400">{ rp.Region }</span>
+										if rp.Status == "operational" {
+											<span class="w-2 h-2 rounded-full bg-emerald-400" title="Operational"></span>
+										} else if rp.Status == "degraded" {
+											<span class="w-2 h-2 rounded-full bg-amber-400" title="Degraded"></span>
+										} else {
+											<span class="w-2 h-2 rounded-full bg-rose-500" title="Down"></span>
+										}
+									</div>
+									<div class="mt-1 flex items-baseline justify-between">
+										<span class="text-xs font-mono font-semibold text-zinc-200">{ fmt.Sprintf("%.1fms", rp.AvgLatency) }</span>
+										<span class="text-[10px] font-mono text-zinc-500">{ fmt.Sprintf("%.0f%% SLA", rp.SuccessRate) }</span>
+									</div>
+								</div>
+							}
+						</div>
+					</div>
+				}
+
 				<!-- Probe Health History (if available) -->
 				if len(s.ProbePoints) > 0 {
 					<div class="space-y-2">

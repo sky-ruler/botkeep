@@ -39,8 +39,9 @@ type Server struct {
 	Uptime        string       `json:"uptime"`
 	LastChecked   *time.Time   `json:"last_checked"`
 	CreatedAt     time.Time    `json:"created_at"`
-	UpdatedAt     time.Time    `json:"updated_at"`
-	ProbePoints   []ProbePoint `json:"probe_points,omitempty"`
+	UpdatedAt      time.Time                `json:"updated_at"`
+	ProbePoints    []ProbePoint             `json:"probe_points,omitempty"`
+	RegionalProbes []RegionalProbeSummary   `json:"regional_probes,omitempty"`
 }
 
 type Incident struct {
@@ -94,6 +95,38 @@ type ProbePoint struct {
 	StatusCode int       `json:"status_code"`
 	Success    bool      `json:"success"`
 	CreatedAt  time.Time `json:"created_at"`
+}
+
+type Satellite struct {
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	Region         string    `json:"region"`
+	IPAddress      string    `json:"ip_address"`
+	Status         string    `json:"status"` // "online", "offline"
+	LatencyToHubMS float64   `json:"latency_to_hub_ms"`
+	LastHeartbeat  time.Time `json:"last_heartbeat"`
+	Version        string    `json:"version"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+type SatelliteProbe struct {
+	ID           int64     `json:"id"`
+	SatelliteID  string    `json:"satellite_id"`
+	ServerID     string    `json:"server_id"`
+	Region       string    `json:"region"`
+	LatencyMS    float64   `json:"latency_ms"`
+	StatusCode   int       `json:"status_code"`
+	Success      bool      `json:"success"`
+	ErrorMessage string    `json:"error_message,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type RegionalProbeSummary struct {
+	Region      string    `json:"region"`
+	AvgLatency  float64   `json:"avg_latency"`
+	SuccessRate float64   `json:"success_rate"`
+	LastChecked time.Time `json:"last_checked"`
+	Status      string    `json:"status"` // "operational", "degraded", "down"
 }
 
 type ClusterMetrics struct {
@@ -230,6 +263,7 @@ func (db *DB) GetServerByID(id string) (*Server, error) {
 
 	// Attach recent probe history for sparklines
 	s.ProbePoints, _ = db.getProbeHistoryUnsafe(s.ID, 20)
+	s.RegionalProbes, _ = db.getRegionalProbesUnsafe(s.ID)
 
 	return &s, nil
 }
@@ -499,7 +533,7 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 	defer db.mu.Unlock()
 
 	now := time.Now()
-	id := fmt.Sprintf("srv-%s-%03d", strings.ToLower(region[:2]), rand.Intn(900)+100)
+	id := fmt.Sprintf("srv-%s-%04d", strings.ToLower(region[:2]), rand.Intn(9000)+1000)
 	ip := fmt.Sprintf("10.0.%d.%d", rand.Intn(10)+1, rand.Intn(240)+10)
 	latency := 0.0
 	protocol := "HTTP"
@@ -915,6 +949,75 @@ func (db *DB) SeedDemoFleet() error {
 		`, inc.id, inc.title, inc.status, inc.severity, inc.comps, inc.msg, inc.created, inc.resolved)
 	}
 
+	// Seed demo edge satellite probes for multi-region consensus telemetry
+	demoSatellites := []Satellite{
+		{
+			ID:             "sat-us-east-01",
+			Name:           "Virginia Edge Satellite",
+			Region:         "us-east-1",
+			IPAddress:      "198.51.100.12",
+			Status:         "online",
+			LatencyToHubMS: 18.4,
+			LastHeartbeat:  now,
+			Version:        "2.0.0",
+			CreatedAt:      now.Add(-48 * time.Hour),
+		},
+		{
+			ID:             "sat-eu-fra-01",
+			Name:           "Frankfurt Edge Satellite",
+			Region:         "eu-central-1",
+			IPAddress:      "198.51.100.45",
+			Status:         "online",
+			LatencyToHubMS: 86.2,
+			LastHeartbeat:  now,
+			Version:        "2.0.0",
+			CreatedAt:      now.Add(-48 * time.Hour),
+		},
+		{
+			ID:             "sat-ap-tokyo-01",
+			Name:           "Tokyo Edge Satellite",
+			Region:         "ap-northeast-1",
+			IPAddress:      "198.51.100.89",
+			Status:         "online",
+			LatencyToHubMS: 142.8,
+			LastHeartbeat:  now,
+			Version:        "2.0.0",
+			CreatedAt:      now.Add(-48 * time.Hour),
+		},
+	}
+	for _, sat := range demoSatellites {
+		_, _ = db.conn.Exec(`
+			INSERT INTO satellites (id, name, region, ip_address, status, latency_to_hub_ms, last_heartbeat, version, created_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(id) DO UPDATE SET last_heartbeat = excluded.last_heartbeat, status = excluded.status
+		`, sat.ID, sat.Name, sat.Region, sat.IPAddress, sat.Status, sat.LatencyToHubMS, sat.LastHeartbeat, sat.Version, sat.CreatedAt)
+	}
+
+	// Seed regional probes for each demo server
+	for _, s := range demoServers {
+		for _, sat := range demoSatellites {
+			for i := 4; i >= 0; i-- {
+				success := 1
+				code := 200
+				lat := s.LatencyMS + (rand.Float64()-0.5)*12.0
+				if sat.Region == "eu-central-1" {
+					lat += 45.0
+				} else if sat.Region == "ap-northeast-1" {
+					lat += 95.0
+				}
+				if s.Status == "stopped" {
+					success = 0
+					code = 503
+					lat = 0
+				}
+				_, _ = db.conn.Exec(`
+					INSERT INTO satellite_probes (satellite_id, server_id, region, latency_ms, status_code, success, created_at)
+					VALUES (?, ?, ?, ?, ?, ?, ?)
+				`, sat.ID, s.ID, sat.Region, lat, code, success, now.Add(-time.Duration(i*3)*time.Minute))
+			}
+		}
+	}
+
 	demoLogs := []struct {
 		srvID string
 		lvl   string
@@ -1308,3 +1411,189 @@ func (db *DB) BootstrapNotificationChannels() error {
 
 	return nil
 }
+
+// --- Satellite Mesh & Multi-Region Consensus Methods ---
+
+func (db *DB) RegisterOrUpdateSatellite(sat Satellite) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	now := time.Now()
+	if sat.Version == "" {
+		sat.Version = "2.0.0"
+	}
+	if sat.Status == "" {
+		sat.Status = "online"
+	}
+
+	_, err := db.conn.Exec(`
+		INSERT INTO satellites (id, name, region, ip_address, status, latency_to_hub_ms, last_heartbeat, version, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			name = excluded.name,
+			region = excluded.region,
+			ip_address = excluded.ip_address,
+			status = excluded.status,
+			latency_to_hub_ms = excluded.latency_to_hub_ms,
+			last_heartbeat = excluded.last_heartbeat,
+			version = excluded.version
+	`, sat.ID, sat.Name, sat.Region, sat.IPAddress, sat.Status, sat.LatencyToHubMS, now, sat.Version, now)
+	return err
+}
+
+func (db *DB) GetSatellites() ([]Satellite, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	rows, err := db.conn.Query(`
+		SELECT id, name, region, ip_address, status, latency_to_hub_ms, last_heartbeat, version, created_at
+		FROM satellites
+		ORDER BY region ASC, id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sats []Satellite
+	now := time.Now()
+	for rows.Next() {
+		var s Satellite
+		if err := rows.Scan(&s.ID, &s.Name, &s.Region, &s.IPAddress, &s.Status, &s.LatencyToHubMS, &s.LastHeartbeat, &s.Version, &s.CreatedAt); err != nil {
+			return nil, err
+		}
+		// If satellite heartbeat is older than 60s, mark as offline in-flight
+		if now.Sub(s.LastHeartbeat) > 60*time.Second {
+			s.Status = "offline"
+		}
+		sats = append(sats, s)
+	}
+	return sats, rows.Err()
+}
+
+func (db *DB) RecordSatelliteProbe(probe SatelliteProbe) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	now := time.Now()
+	successInt := 0
+	if probe.Success {
+		successInt = 1
+	}
+
+	_, err := db.conn.Exec(`
+		INSERT INTO satellite_probes (satellite_id, server_id, region, latency_ms, status_code, success, error_message, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, probe.SatelliteID, probe.ServerID, probe.Region, probe.LatencyMS, probe.StatusCode, successInt, probe.ErrorMessage, now)
+	if err != nil {
+		return err
+	}
+
+	// Update satellite heartbeat implicitly
+	_, _ = db.conn.Exec(`UPDATE satellites SET last_heartbeat = ?, status = 'online' WHERE id = ?`, now, probe.SatelliteID)
+
+	return nil
+}
+
+func (db *DB) getRegionalProbesUnsafe(serverID string) ([]RegionalProbeSummary, error) {
+	rows, err := db.conn.Query(`
+		SELECT region, 
+		       COALESCE(AVG(latency_ms), 0.0), 
+		       COALESCE(AVG(CASE WHEN success = 1 THEN 100.0 ELSE 0.0 END), 0.0),
+		       COALESCE(MAX(created_at), '')
+		FROM (
+			SELECT region, latency_ms, success, created_at
+			FROM satellite_probes
+			WHERE server_id = ?
+			ORDER BY id DESC
+			LIMIT 30
+		)
+		GROUP BY region
+		ORDER BY region ASC
+	`, serverID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var summaries []RegionalProbeSummary
+	for rows.Next() {
+		var s RegionalProbeSummary
+		var lastCheckedRaw any
+		if err := rows.Scan(&s.Region, &s.AvgLatency, &s.SuccessRate, &lastCheckedRaw); err != nil {
+			continue
+		}
+		s.LastChecked = time.Now()
+		if lastCheckedRaw != nil {
+			switch v := lastCheckedRaw.(type) {
+			case time.Time:
+				s.LastChecked = v
+			case string:
+				if t, err := time.Parse(time.RFC3339, v); err == nil {
+					s.LastChecked = t
+				} else if t, err := time.Parse("2006-01-02 15:04:05", v); err == nil {
+					s.LastChecked = t
+				}
+			}
+		}
+		if s.SuccessRate >= 90 {
+			s.Status = "operational"
+		} else if s.SuccessRate >= 50 {
+			s.Status = "degraded"
+		} else {
+			s.Status = "down"
+		}
+		summaries = append(summaries, s)
+	}
+	return summaries, nil
+}
+
+// EvaluateConsensus determines if a node is truly down across the satellite mesh.
+// Consensus policy: Down alerts only trigger if >= 2 distinct regions confirm failure.
+// If fewer than 2 regions are deployed/reporting, falls back to single-probe status.
+func (db *DB) EvaluateConsensus(serverID string) (isDown bool, failingRegions []string, totalRegions int, err error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	since := time.Now().Add(-5 * time.Minute)
+	rows, err := db.conn.Query(`
+		SELECT sp.region, sp.success
+		FROM satellite_probes sp
+		INNER JOIN (
+			SELECT region, MAX(id) as max_id
+			FROM satellite_probes
+			WHERE server_id = ? AND created_at >= ?
+			GROUP BY region
+		) latest ON sp.id = latest.max_id
+	`, serverID, since)
+	if err != nil {
+		return false, nil, 0, err
+	}
+	defer rows.Close()
+
+	var fails []string
+	count := 0
+	for rows.Next() {
+		var region string
+		var success int
+		if err := rows.Scan(&region, &success); err != nil {
+			continue
+		}
+		count++
+		if success == 0 {
+			fails = append(fails, region)
+		}
+	}
+
+	if count >= 2 {
+		// Multi-region mesh active: require at least 2 distinct regions to agree on failure
+		return len(fails) >= 2, fails, count, nil
+	} else if count == 1 {
+		// Single region reporting
+		return len(fails) == 1, fails, 1, nil
+	}
+
+	// No satellite probes within window, fallback
+	return false, nil, 0, nil
+}
+

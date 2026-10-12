@@ -204,6 +204,20 @@ func (e *Engine) ProbeNow(ctx context.Context, serverID string) (*models.Server,
 
 // dispatchAlert logs incident events and dispatches notifications to configured channels.
 func (e *Engine) dispatchAlert(s models.Server, recovered bool, reason string) {
+	if !recovered {
+		// Multi-Region Consensus Probing Shield:
+		// If 2 or more satellite regions are reporting, suppress false alarms if only 1 region fails
+		isConsensusDown, failingRegions, totalRegions, err := e.db.EvaluateConsensus(s.ID)
+		if err == nil && totalRegions >= 2 && !isConsensusDown {
+			shieldMsg := fmt.Sprintf("[%s] CONSENSUS SHIELD: Regional failure (%s) suppressed (only %d/%d regions affected). False alarm eliminated.", s.Name, reason, len(failingRegions), totalRegions)
+			_ = e.db.AddLog(s.ID, "WARN", shieldMsg)
+			log.Println("[Consensus Shield]", shieldMsg)
+			return
+		} else if isConsensusDown && len(failingRegions) >= 2 {
+			reason = fmt.Sprintf("%s [Verified by %d-region consensus: %s]", reason, len(failingRegions), strings.Join(failingRegions, ", "))
+		}
+	}
+
 	level := "ERROR"
 	msg := fmt.Sprintf("[%s] INCIDENT: Health check probe failed (%s)", s.Name, reason)
 	if recovered {

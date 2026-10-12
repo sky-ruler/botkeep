@@ -28,6 +28,11 @@ var (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "agent" {
+		runSatelliteAgent(os.Args[2:])
+		return
+	}
+
 	flagPort := flag.String("port", "", "Server HTTP listening port (default: 8080 or $PORT)")
 	flagDB := flag.String("db", "", "SQLite database filepath (default: botkeep.db or $DB_PATH)")
 	flagInterval := flag.Duration("interval", 15*time.Second, "Health probe interval (default: 15s)")
@@ -144,6 +149,12 @@ func main() {
 	r.Post("/admin/notifications/{id}/test", h.TestNotificationChannel)
 	r.Post("/admin/notifications/test-all", h.TestAllNotifications)
 	r.Get("/api/notifications", h.NotificationsJSON)
+
+	// Zero-Config Satellite Mesh & Multi-Region Consensus API
+	r.Get("/api/satellites", h.SatellitesJSON)
+	r.Post("/api/satellite/heartbeat", h.SatelliteHeartbeat)
+	r.Post("/api/satellite/report", h.SatelliteReport)
+	r.Get("/api/satellite/targets", h.SatelliteTargets)
 
 	// Health check endpoint
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {

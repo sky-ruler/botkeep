@@ -60,9 +60,37 @@ CREATE TABLE IF NOT EXISTS notification_channels (
     last_dispatched_at DATETIME
 );
 
+CREATE TABLE IF NOT EXISTS satellites (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    region TEXT NOT NULL,
+    ip_address TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'online' CHECK(status IN ('online', 'offline')),
+    latency_to_hub_ms REAL NOT NULL DEFAULT 0.0,
+    last_heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP,
+    version TEXT NOT NULL DEFAULT '2.0.0',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS satellite_probes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    satellite_id TEXT NOT NULL,
+    server_id TEXT NOT NULL,
+    region TEXT NOT NULL,
+    latency_ms REAL NOT NULL,
+    status_code INTEGER NOT NULL,
+    success INTEGER NOT NULL,
+    error_message TEXT NOT NULL DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(satellite_id) REFERENCES satellites(id) ON DELETE CASCADE,
+    FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_servers_status ON servers(status);
 CREATE INDEX IF NOT EXISTS idx_servers_driver ON servers(driver);
 CREATE INDEX IF NOT EXISTS idx_probe_history_server ON probe_history(server_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_incidents_created ON incidents(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notification_channels_enabled ON notification_channels(enabled);
+CREATE INDEX IF NOT EXISTS idx_satellites_heartbeat ON satellites(last_heartbeat DESC);
+CREATE INDEX IF NOT EXISTS idx_satellite_probes_server ON satellite_probes(server_id, region, created_at DESC);

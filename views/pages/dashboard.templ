@@ -19,6 +19,13 @@ templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []
 				<p class="text-xs text-zinc-400 mt-1">Real-time edge compute monitoring, multi-protocol health checks, and rolling SLA compliance.</p>
 			</div>
 			<div class="flex flex-wrap items-center gap-2">
+				<!-- Satellite Mesh Consensus Badge -->
+				<div class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900/90 border border-zinc-800 text-xs font-mono shadow-sm" title="Multi-Region Satellite Consensus Probing active across edge nodes">
+					<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+					<span class="text-zinc-400">Mesh:</span>
+					<span class="text-emerald-400 font-semibold">3 Edge Regions</span>
+				</div>
+
 				<!-- Poll Metrics Button -->
 				<button
 					type="button"
