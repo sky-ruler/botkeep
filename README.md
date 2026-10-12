@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ BotKeep
+# BotKeep
 
 ### Enterprise Multi-Protocol DevOps Fleet Management & Observability Dashboard
 
