@@ -6,7 +6,7 @@ import (
 	"botkeep/views/components"
 )
 
-templ ServerDetailDrawer(s models.Server, logs []models.LogEntry) {
+templ ServerDetailDrawer(s models.Server, logs []models.LogEntry, remediations []models.Remediation) {
 	<div id="detail-drawer" class="fixed inset-0 z-50 overflow-hidden bg-zinc-950/70 backdrop-blur-sm flex justify-end transition-opacity duration-300">
 		<!-- Backdrop click to close -->
 		<div class="fixed inset-0" onclick="document.getElementById('detail-drawer').remove()"></div>
@@ -177,6 +177,104 @@ templ ServerDetailDrawer(s models.Server, logs []models.LogEntry) {
 						</div>
 					</div>
 				}
+
+				<!-- Active Self-Healing Runbook Section -->
+				<div class="rounded-lg bg-zinc-950/60 border border-zinc-800 p-4 space-y-3">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+							</svg>
+							<h4 class="text-xs font-semibold text-zinc-200">Active Self-Healing Runbook</h4>
+						</div>
+						if s.RunbookEnabled {
+							<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Auto-Heal Active</span>
+						} else {
+							<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-800 text-zinc-400">Disabled</span>
+						}
+					</div>
+					<p class="text-[11px] text-zinc-400">Autonomous webhook trigger on downtime (GitHub Action, Kubernetes pod rollout, or Docker restart) before human escalation.</p>
+
+					<form
+						hx-post={ "/servers/" + s.ID + "/runbook" }
+						hx-target="#detail-drawer"
+						hx-swap="outerHTML"
+						class="space-y-3"
+					>
+						<div class="space-y-1">
+							<label class="text-[11px] text-zinc-400 font-medium">Remediation Webhook URL</label>
+							<input
+								type="url"
+								name="runbook_url"
+								value={ s.RunbookURL }
+								placeholder="https://api.github.com/... or https://cluster.internal/webhook"
+								class="w-full px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-emerald-500"
+							/>
+						</div>
+
+						<div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+							<label class="flex items-center gap-2 cursor-pointer">
+								<input
+									type="checkbox"
+									name="runbook_enabled"
+									value="1"
+									if s.RunbookEnabled {
+										checked
+									}
+									class="rounded bg-zinc-800 border-zinc-700 text-emerald-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+								/>
+								<span class="text-xs text-zinc-300">Enable Autonomous Remediation</span>
+							</label>
+
+							<div class="flex items-center gap-2">
+								if s.RunbookEnabled && s.RunbookURL != "" {
+									<button
+										type="button"
+										hx-post={ "/servers/" + s.ID + "/runbook/trigger" }
+										hx-swap="none"
+										class="px-2.5 py-1 rounded text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-colors cursor-pointer"
+										title="Test-fire remediation webhook"
+									>
+										Smoke Test
+									</button>
+								}
+								<button
+									type="submit"
+									class="px-3 py-1 rounded text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer shadow-sm"
+								>
+									Save Runbook
+								</button>
+							</div>
+						</div>
+					</form>
+
+					if len(remediations) > 0 {
+						<div class="pt-2 border-t border-zinc-800/80 space-y-1.5">
+							<span class="text-[10px] uppercase font-mono tracking-wider text-zinc-500">Autonomous Remediation History</span>
+							<div class="space-y-1.5 max-h-36 overflow-y-auto">
+								for _, rem := range remediations {
+									<div class="p-2 rounded bg-zinc-900/80 border border-zinc-800/80 text-[11px] font-mono">
+										<div class="flex items-center justify-between">
+											<span class="font-semibold text-zinc-200">{ rem.ActionName }</span>
+											if rem.Status == "healed" {
+												<span class="text-emerald-400 font-semibold">Self-Healed ✓</span>
+											} else if rem.Status == "triggered" {
+												<span class="text-sky-400">Triggered</span>
+											} else {
+												<span class="text-rose-400">Failed</span>
+											}
+										</div>
+										<p class="text-zinc-400 text-[10px] mt-0.5 truncate">{ rem.OutputLog }</p>
+										<div class="text-[10px] text-zinc-500 mt-0.5 flex justify-between">
+											<span>{ rem.TriggerReason }</span>
+											<span>{ rem.CreatedAt.Format("15:04:05") }</span>
+										</div>
+									</div>
+								}
+							</div>
+						</div>
+					}
+				</div>
 
 				<!-- Probe Health History (if available) -->
 				if len(s.ProbePoints) > 0 {

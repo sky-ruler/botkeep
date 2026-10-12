@@ -23,6 +23,7 @@ type Engine struct {
 	interval   time.Duration
 	webhookURL string
 	dispatcher *Dispatcher
+	healer     *Healer
 	mu         sync.Mutex
 }
 
@@ -50,12 +51,18 @@ func NewEngine(db *models.DB, interval time.Duration) *Engine {
 		interval:   interval,
 		webhookURL: os.Getenv("BOTKEEP_WEBHOOK_URL"),
 		dispatcher: NewDispatcher(5 * time.Second),
+		healer:     NewHealer(db, 8*time.Second),
 	}
 }
 
 // GetDispatcher returns the notification dispatcher.
 func (e *Engine) GetDispatcher() *Dispatcher {
 	return e.dispatcher
+}
+
+// GetHealer returns the active remediation healer.
+func (e *Engine) GetHealer() *Healer {
+	return e.healer
 }
 
 // Start launches the background prober loop until context cancellation.
@@ -215,6 +222,20 @@ func (e *Engine) dispatchAlert(s models.Server, recovered bool, reason string) {
 			return
 		} else if isConsensusDown && len(failingRegions) >= 2 {
 			reason = fmt.Sprintf("%s [Verified by %d-region consensus: %s]", reason, len(failingRegions), strings.Join(failingRegions, ", "))
+		}
+
+		// Trigger Active Self-Healing Runbook if configured
+		if s.RunbookEnabled && s.RunbookURL != "" {
+			go func(srv models.Server, failReason string) {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				_ = e.healer.TriggerRemediation(ctx, srv, failReason)
+			}(s, reason)
+		}
+	} else {
+		// Node recovered: resolve pending auto-healing remediations
+		if s.RunbookEnabled {
+			e.healer.OnRecovery(s)
 		}
 	}
 

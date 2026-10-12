@@ -404,3 +404,69 @@ func TestSatelliteMeshAndConsensus(t *testing.T) {
 	}
 }
 
+func TestRunbookAndRemediations(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	servers, err := db.GetAllServers()
+	if err != nil || len(servers) == 0 {
+		t.Fatalf("No servers in test DB: %v", err)
+	}
+	targetID := servers[0].ID
+
+	// 1. Update runbook config
+	testURL := "https://api.github.com/repos/org/repo/dispatches"
+	err = db.UpdateServerRunbook(targetID, testURL, true)
+	if err != nil {
+		t.Fatalf("UpdateServerRunbook failed: %v", err)
+	}
+
+	updated, err := db.GetServerByID(targetID)
+	if err != nil {
+		t.Fatalf("GetServerByID failed: %v", err)
+	}
+	if updated.RunbookURL != testURL || !updated.RunbookEnabled {
+		t.Errorf("Expected runbook url %s and enabled true, got %s and %v", testURL, updated.RunbookURL, updated.RunbookEnabled)
+	}
+
+	// 2. Record a remediation
+	rem, err := db.RecordRemediation(Remediation{
+		ServerID:      targetID,
+		ActionName:    "Kubernetes Rollout Restart",
+		TriggerReason: "HTTP 500 Internal Error",
+		Status:        "triggered",
+		ResponseCode:  200,
+		OutputLog:     "Deployment restart triggered successfully",
+	})
+	if err != nil {
+		t.Fatalf("RecordRemediation failed: %v", err)
+	}
+	if rem.ID == 0 {
+		t.Errorf("Expected non-zero remediation ID")
+	}
+
+	// Verify auto_heal_attempts incremented
+	afterRem, _ := db.GetServerByID(targetID)
+	if afterRem.AutoHealAttempts != 1 {
+		t.Errorf("Expected auto_heal_attempts 1, got %d", afterRem.AutoHealAttempts)
+	}
+
+	// 3. Update remediation status to healed
+	err = db.RecordAutoHealSuccess(targetID)
+	if err != nil {
+		t.Fatalf("RecordAutoHealSuccess failed: %v", err)
+	}
+
+	rems, err := db.GetServerRemediations(targetID, 5)
+	if err != nil {
+		t.Fatalf("GetServerRemediations failed: %v", err)
+	}
+	if len(rems) != 1 {
+		t.Fatalf("Expected 1 remediation, got %d", len(rems))
+	}
+	if rems[0].Status != "healed" || rems[0].ResolvedAt == nil {
+		t.Errorf("Expected status healed and non-nil ResolvedAt, got %s, %v", rems[0].Status, rems[0].ResolvedAt)
+	}
+}
+
+

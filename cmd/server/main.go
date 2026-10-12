@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"botkeep"
+	"botkeep/internal/gitops"
 	"botkeep/internal/handlers"
 	"botkeep/internal/models"
 	"botkeep/internal/monitor"
@@ -32,10 +33,15 @@ func main() {
 		runSatelliteAgent(os.Args[2:])
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "export-fleet" {
+		runExportFleet(os.Args[2:])
+		return
+	}
 
 	flagPort := flag.String("port", "", "Server HTTP listening port (default: 8080 or $PORT)")
 	flagDB := flag.String("db", "", "SQLite database filepath (default: botkeep.db or $DB_PATH)")
 	flagInterval := flag.Duration("interval", 15*time.Second, "Health probe interval (default: 15s)")
+	flagFleet := flag.String("fleet", "", "Path to declarative GitOps fleet.yaml configuration (optional)")
 	flagVersion := flag.Bool("version", false, "Print BotKeep version information and exit")
 	flagSeed := flag.Bool("seed", false, "Force re-seed demo server fleet on startup")
 	flag.Parse()
@@ -110,6 +116,21 @@ func main() {
 	defer cancelMon()
 	go mon.Start(monCtx)
 
+	// GitOps Declarative Fleet Reconciliation & Active File Watcher
+	fleetPath := *flagFleet
+	if fleetPath == "" {
+		fleetPath = os.Getenv("BOTKEEP_FLEET_FILE")
+	}
+	if fleetPath != "" {
+		log.Printf("[GitOps] Loading declarative fleet configuration from %s", fleetPath)
+		if cfg, err := gitops.LoadFleetConfig(fleetPath); err == nil {
+			_, _, _ = gitops.ReconcileFleet(db, cfg)
+			go gitops.WatchFleetFile(monCtx, db, fleetPath, 5*time.Second)
+		} else {
+			log.Printf("[GitOps] Warning: failed to load %s: %v", fleetPath, err)
+		}
+	}
+
 	// Handlers
 	h := handlers.NewHandler(db, mon)
 
@@ -155,6 +176,11 @@ func main() {
 	r.Post("/api/satellite/heartbeat", h.SatelliteHeartbeat)
 	r.Post("/api/satellite/report", h.SatelliteReport)
 	r.Get("/api/satellite/targets", h.SatelliteTargets)
+
+	// Self-Healing Runbooks & GitOps Endpoints
+	r.Post("/servers/{id}/runbook", h.UpdateServerRunbook)
+	r.Post("/servers/{id}/runbook/trigger", h.TriggerServerRunbook)
+	r.Get("/api/fleet/gitops/export", h.ExportFleetYAML)
 
 	// Health check endpoint
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -204,4 +230,27 @@ func main() {
 		}
 		log.Println("[Shutdown] Server gracefully terminated.")
 	}
+}
+
+func runExportFleet(args []string) {
+	fs := flag.NewFlagSet("export-fleet", flag.ExitOnError)
+	dbPath := fs.String("db", "botkeep.db", "SQLite database path")
+	outFile := fs.String("out", "fleet.yaml", "Output filepath for exported fleet YAML")
+	_ = fs.Parse(args)
+
+	db, err := models.NewDB(*dbPath)
+	if err != nil {
+		log.Fatalf("Failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	data, err := gitops.ExportFleetConfig(db)
+	if err != nil {
+		log.Fatalf("Failed to export fleet YAML: %v", err)
+	}
+
+	if err := os.WriteFile(*outFile, data, 0644); err != nil {
+		log.Fatalf("Failed to write %s: %v", *outFile, err)
+	}
+	fmt.Printf("Successfully exported fleet configuration to %s\n", *outFile)
 }

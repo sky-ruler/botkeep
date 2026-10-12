@@ -41,6 +41,22 @@ templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []
 					<span>Poll Metrics</span>
 				</button>
 
+				<!-- GitOps Export YAML Button -->
+				<a
+					href="/api/fleet/gitops/export"
+					download="fleet.yaml"
+					class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors shadow-sm cursor-pointer"
+					title="Export declarative GitOps fleet.yaml"
+				>
+					<svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+						<polyline points="14 2 14 8 20 8"></polyline>
+						<line x1="16" y1="13" x2="8" y2="13"></line>
+						<line x1="16" y1="17" x2="8" y2="17"></line>
+					</svg>
+					<span>GitOps YAML</span>
+				</a>
+
 				<!-- Quick Deploy Focus Button -->
 				<button
 					type="button"
@@ -352,6 +368,12 @@ templ ServerRow(s models.Server) {
 				@components.ProtocolBadge(s.Protocol)
 				if s.SSLExpiryDays >= 0 {
 					@components.SSLBadge(s.SSLExpiryDays)
+				}
+				if s.RunbookEnabled {
+					<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" title="Self-Healing Runbook Active">
+						<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+						Auto-Heal
+					</span>
 				}
 			</div>
 		</td>

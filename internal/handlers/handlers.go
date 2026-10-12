@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"botkeep/internal/gitops"
 	"botkeep/internal/models"
 	"botkeep/internal/monitor"
 	"botkeep/views/components"
@@ -85,9 +86,10 @@ func (h *Handler) GetServerDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logs, _ := h.db.GetServerLogs(id, 15)
+	remediations, _ := h.db.GetServerRemediations(id, 5)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = pages.ServerDetailDrawer(*server, logs).Render(r.Context(), w)
+	_ = pages.ServerDetailDrawer(*server, logs, remediations).Render(r.Context(), w)
 }
 
 // DeleteServer removes and decommissions a server instance.
@@ -944,4 +946,80 @@ func (h *Handler) SatelliteTargets(w http.ResponseWriter, r *http.Request) {
 		"count":   len(targets),
 	})
 }
+
+// UpdateServerRunbook updates the runbook webhook URL and active status for a server.
+func (h *Handler) UpdateServerRunbook(w http.ResponseWriter, r *http.Request) {
+	id := sanitizeID(chi.URLParam(r, "id"))
+	if id == "" {
+		http.Error(w, "Invalid server ID provided", http.StatusBadRequest)
+		return
+	}
+
+	_ = r.ParseForm()
+	runbookURL := strings.TrimSpace(r.FormValue("runbook_url"))
+	enabled := r.FormValue("runbook_enabled") == "1"
+
+	if err := h.db.UpdateServerRunbook(id, runbookURL, enabled); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update runbook: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	server, err := h.db.GetServerByID(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	logs, _ := h.db.GetServerLogs(id, 15)
+	remediations, _ := h.db.GetServerRemediations(id, 5)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = pages.ServerDetailDrawer(*server, logs, remediations).Render(r.Context(), w)
+}
+
+// TriggerServerRunbook executes a manual smoke test of a server's auto-healing runbook.
+func (h *Handler) TriggerServerRunbook(w http.ResponseWriter, r *http.Request) {
+	id := sanitizeID(chi.URLParam(r, "id"))
+	if id == "" {
+		http.Error(w, "Invalid server ID", http.StatusBadRequest)
+		return
+	}
+
+	server, err := h.db.GetServerByID(id)
+	if err != nil {
+		http.Error(w, "Server not found", http.StatusNotFound)
+		return
+	}
+
+	if !server.RunbookEnabled || server.RunbookURL == "" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = components.Toast("Cannot trigger: Runbook is not enabled or URL is empty", "error").Render(r.Context(), w)
+		return
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if h.monitor != nil && h.monitor.GetHealer() != nil {
+			_ = h.monitor.GetHealer().TriggerRemediation(ctx, *server, "Manual Operator Smoke Test")
+		}
+	}()
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	msg := fmt.Sprintf("Remediation smoke test dispatched for %s (%s)", server.Name, server.RunbookURL)
+	_ = components.Toast(msg, "success").Render(r.Context(), w)
+}
+
+// ExportFleetYAML exports the entire fleet in GitOps-ready fleet.yaml format.
+func (h *Handler) ExportFleetYAML(w http.ResponseWriter, r *http.Request) {
+	yamlBytes, err := gitops.ExportFleetConfig(h.db)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to export fleet YAML: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/x-yaml; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"fleet.yaml\"")
+	_, _ = w.Write(yamlBytes)
+}
+
 

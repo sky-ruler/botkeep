@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS servers (
     storage_usage REAL NOT NULL DEFAULT 0.0,
     uptime TEXT NOT NULL DEFAULT '0m',
     last_checked DATETIME,
+    runbook_url TEXT NOT NULL DEFAULT '',
+    runbook_enabled INTEGER NOT NULL DEFAULT 0,
+    auto_heal_attempts INTEGER NOT NULL DEFAULT 0,
+    last_healed_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -86,6 +90,19 @@ CREATE TABLE IF NOT EXISTS satellite_probes (
     FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS remediations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id TEXT NOT NULL,
+    action_name TEXT NOT NULL,
+    trigger_reason TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('triggered', 'in_progress', 'healed', 'failed')),
+    response_code INTEGER NOT NULL DEFAULT 0,
+    output_log TEXT NOT NULL DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME,
+    FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_servers_status ON servers(status);
 CREATE INDEX IF NOT EXISTS idx_servers_driver ON servers(driver);
 CREATE INDEX IF NOT EXISTS idx_probe_history_server ON probe_history(server_id, created_at DESC);
@@ -94,3 +111,4 @@ CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notification_channels_enabled ON notification_channels(enabled);
 CREATE INDEX IF NOT EXISTS idx_satellites_heartbeat ON satellites(last_heartbeat DESC);
 CREATE INDEX IF NOT EXISTS idx_satellite_probes_server ON satellite_probes(server_id, region, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_remediations_server ON remediations(server_id, created_at DESC);

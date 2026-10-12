@@ -32,16 +32,32 @@ type Server struct {
 	SSLExpiryDays int          `json:"ssl_expiry_days"`
 	IsPublic      bool         `json:"is_public"`
 	LatencyMS     float64      `json:"latency_ms"`
-	UptimePct     float64      `json:"uptime_pct"`
-	CPUUsage      float64      `json:"cpu_usage"`
-	MemoryUsage   float64      `json:"memory_usage"`
-	StorageUsage  float64      `json:"storage_usage"`
-	Uptime        string       `json:"uptime"`
-	LastChecked   *time.Time   `json:"last_checked"`
-	CreatedAt     time.Time    `json:"created_at"`
-	UpdatedAt      time.Time                `json:"updated_at"`
-	ProbePoints    []ProbePoint             `json:"probe_points,omitempty"`
-	RegionalProbes []RegionalProbeSummary   `json:"regional_probes,omitempty"`
+	UptimePct        float64                  `json:"uptime_pct"`
+	CPUUsage         float64                  `json:"cpu_usage"`
+	MemoryUsage      float64                  `json:"memory_usage"`
+	StorageUsage     float64                  `json:"storage_usage"`
+	Uptime           string                   `json:"uptime"`
+	LastChecked      *time.Time               `json:"last_checked"`
+	RunbookURL       string                   `json:"runbook_url"`
+	RunbookEnabled   bool                     `json:"runbook_enabled"`
+	AutoHealAttempts int                      `json:"auto_heal_attempts"`
+	LastHealedAt     *time.Time               `json:"last_healed_at,omitempty"`
+	CreatedAt        time.Time                `json:"created_at"`
+	UpdatedAt        time.Time                `json:"updated_at"`
+	ProbePoints      []ProbePoint             `json:"probe_points,omitempty"`
+	RegionalProbes   []RegionalProbeSummary   `json:"regional_probes,omitempty"`
+}
+
+type Remediation struct {
+	ID            int64      `json:"id"`
+	ServerID      string     `json:"server_id"`
+	ActionName    string     `json:"action_name"`
+	TriggerReason string     `json:"trigger_reason"`
+	Status        string     `json:"status"` // "triggered", "in_progress", "healed", "failed"
+	ResponseCode  int        `json:"response_code"`
+	OutputLog     string     `json:"output_log"`
+	CreatedAt     time.Time  `json:"created_at"`
+	ResolvedAt    *time.Time `json:"resolved_at,omitempty"`
 }
 
 type Incident struct {
@@ -197,6 +213,10 @@ func NewDB(dbPath string) (*DB, error) {
 		"ALTER TABLE servers ADD COLUMN protocol TEXT NOT NULL DEFAULT 'HTTP';",
 		"ALTER TABLE servers ADD COLUMN ssl_expiry_days INTEGER NOT NULL DEFAULT -1;",
 		"ALTER TABLE servers ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1;",
+		"ALTER TABLE servers ADD COLUMN runbook_url TEXT NOT NULL DEFAULT '';",
+		"ALTER TABLE servers ADD COLUMN runbook_enabled INTEGER NOT NULL DEFAULT 0;",
+		"ALTER TABLE servers ADD COLUMN auto_heal_attempts INTEGER NOT NULL DEFAULT 0;",
+		"ALTER TABLE servers ADD COLUMN last_healed_at DATETIME;",
 	}
 	for _, m := range migrations {
 		_, _ = conn.Exec(m)
@@ -242,23 +262,27 @@ func (db *DB) GetServerByID(id string) (*Server, error) {
 	defer db.mu.RUnlock()
 
 	var s Server
-	var lastChecked sql.NullTime
-	var isPublicInt int
+	var lastChecked, lastHealed sql.NullTime
+	var isPublicInt, runbookEnabledInt int
 	err := db.conn.QueryRow(`
 		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
-		       cpu_usage, memory_usage, storage_usage, uptime, last_checked, created_at, updated_at
+		       cpu_usage, memory_usage, storage_usage, uptime, last_checked, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at
 		FROM servers
 		WHERE id = ?
 	`, id).Scan(
 		&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays, &isPublicInt, &s.LatencyMS, &s.UptimePct,
-		&s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime, &lastChecked, &s.CreatedAt, &s.UpdatedAt,
+		&s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime, &lastChecked, &s.RunbookURL, &runbookEnabledInt, &s.AutoHealAttempts, &lastHealed, &s.CreatedAt, &s.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 	s.IsPublic = isPublicInt == 1
+	s.RunbookEnabled = runbookEnabledInt == 1
 	if lastChecked.Valid {
 		s.LastChecked = &lastChecked.Time
+	}
+	if lastHealed.Valid {
+		s.LastHealedAt = &lastHealed.Time
 	}
 
 	// Attach recent probe history for sparklines
@@ -311,7 +335,7 @@ func (db *DB) SearchServers(query, status, region string) ([]Server, error) {
 
 	sqlQuery := `
 		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
-		       cpu_usage, memory_usage, storage_usage, uptime, last_checked, created_at, updated_at
+		       cpu_usage, memory_usage, storage_usage, uptime, last_checked, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at
 		FROM servers
 	`
 	if len(conditions) > 0 {
@@ -327,18 +351,22 @@ func (db *DB) SearchServers(query, status, region string) ([]Server, error) {
 	var servers []Server
 	for rows.Next() {
 		var s Server
-		var lastChecked sql.NullTime
-		var isPublicInt int
+		var lastChecked, lastHealed sql.NullTime
+		var isPublicInt, runbookEnabledInt int
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays, &isPublicInt, &s.LatencyMS, &s.UptimePct,
-			&s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime, &lastChecked, &s.CreatedAt, &s.UpdatedAt,
+			&s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime, &lastChecked, &s.RunbookURL, &runbookEnabledInt, &s.AutoHealAttempts, &lastHealed, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
 		s.IsPublic = isPublicInt == 1
+		s.RunbookEnabled = runbookEnabledInt == 1
 		if lastChecked.Valid {
 			s.LastChecked = &lastChecked.Time
+		}
+		if lastHealed.Valid {
+			s.LastHealedAt = &lastHealed.Time
 		}
 		servers = append(servers, s)
 	}
@@ -597,8 +625,8 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 
 	_, err := db.conn.Exec(`
 		INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
-		                     cpu_usage, memory_usage, storage_usage, uptime, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		                     cpu_usage, memory_usage, storage_usage, uptime, runbook_url, runbook_enabled, auto_heal_attempts, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 0, 0, ?, ?)
 	`, server.ID, server.Name, server.IPAddress, server.Region, server.Status, server.Driver, server.EndpointURL,
 		server.Protocol, server.SSLExpiryDays, 1, server.LatencyMS, server.UptimePct, server.CPUUsage, server.MemoryUsage,
 		server.StorageUsage, server.Uptime, server.CreatedAt, server.UpdatedAt)
@@ -889,12 +917,28 @@ func (db *DB) SeedDemoFleet() error {
 	}
 
 	for _, s := range demoServers {
+		runbookURL := ""
+		runbookEnabled := 0
+		autoHealAttempts := 0
+		var lastHealedAt any = nil
+		if s.ID == "srv-us-101" {
+			runbookURL = "https://api.github.com/repos/org/repo/actions/workflows/restart.yml/dispatches"
+			runbookEnabled = 1
+			autoHealAttempts = 1
+			lastHealedAt = now.Add(-4 * time.Hour)
+		} else if s.ID == "srv-eu-201" {
+			runbookURL = "https://hooks.slack.com/triggers/demo/remediation"
+			runbookEnabled = 1
+			autoHealAttempts = 2
+			lastHealedAt = now.Add(-12 * time.Hour)
+		}
+
 		_, err := db.conn.Exec(`
 			INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
-			                     cpu_usage, memory_usage, storage_usage, uptime, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			                     cpu_usage, memory_usage, storage_usage, uptime, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, s.ID, s.Name, s.IPAddress, s.Region, s.Status, s.Driver, s.EndpointURL, s.Protocol, s.SSLExpiryDays, 1, s.LatencyMS, s.UptimePct,
-			s.CPUUsage, s.MemoryUsage, s.StorageUsage, s.Uptime, s.CreatedAt, s.UpdatedAt)
+			s.CPUUsage, s.MemoryUsage, s.StorageUsage, s.Uptime, runbookURL, runbookEnabled, autoHealAttempts, lastHealedAt, s.CreatedAt, s.UpdatedAt)
 		if err != nil {
 			return err
 		}
@@ -1596,4 +1640,125 @@ func (db *DB) EvaluateConsensus(serverID string) (isDown bool, failingRegions []
 	// No satellite probes within window, fallback
 	return false, nil, 0, nil
 }
+
+// --- Self-Healing Remediation Methods ---
+
+func (db *DB) RecordRemediation(rem Remediation) (*Remediation, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	now := time.Now()
+	res, err := db.conn.Exec(`
+		INSERT INTO remediations (server_id, action_name, trigger_reason, status, response_code, output_log, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, rem.ServerID, rem.ActionName, rem.TriggerReason, rem.Status, rem.ResponseCode, rem.OutputLog, now)
+	if err != nil {
+		return nil, err
+	}
+
+	id, _ := res.LastInsertId()
+	rem.ID = id
+	rem.CreatedAt = now
+
+	// Increment server auto_heal_attempts
+	_, _ = db.conn.Exec(`UPDATE servers SET auto_heal_attempts = auto_heal_attempts + 1 WHERE id = ?`, rem.ServerID)
+
+	return &rem, nil
+}
+
+func (db *DB) UpdateRemediationStatus(id int64, status string, respCode int, logMsg string, resolved bool) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	now := time.Now()
+	var resolvedAt *time.Time
+	if resolved {
+		resolvedAt = &now
+	}
+
+	_, err := db.conn.Exec(`
+		UPDATE remediations
+		SET status = ?, response_code = ?, output_log = ?, resolved_at = ?
+		WHERE id = ?
+	`, status, respCode, logMsg, resolvedAt, id)
+	return err
+}
+
+func (db *DB) GetServerRemediations(serverID string, limit int) ([]Remediation, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	if limit <= 0 {
+		limit = 10
+	}
+
+	rows, err := db.conn.Query(`
+		SELECT id, server_id, action_name, trigger_reason, status, response_code, output_log, created_at, resolved_at
+		FROM remediations
+		WHERE server_id = ?
+		ORDER BY created_at DESC
+		LIMIT ?
+	`, serverID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var rems []Remediation
+	for rows.Next() {
+		var r Remediation
+		var resolvedAt sql.NullTime
+		if err := rows.Scan(&r.ID, &r.ServerID, &r.ActionName, &r.TriggerReason, &r.Status, &r.ResponseCode, &r.OutputLog, &r.CreatedAt, &resolvedAt); err != nil {
+			continue
+		}
+		if resolvedAt.Valid {
+			r.ResolvedAt = &resolvedAt.Time
+		}
+		rems = append(rems, r)
+	}
+	return rems, nil
+}
+
+func (db *DB) UpdateServerRunbook(serverID, runbookURL string, enabled bool) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	enabledInt := 0
+	if enabled {
+		enabledInt = 1
+	}
+
+	_, err := db.conn.Exec(`
+		UPDATE servers
+		SET runbook_url = ?, runbook_enabled = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, runbookURL, enabledInt, serverID)
+	return err
+}
+
+func (db *DB) RecordAutoHealSuccess(serverID string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	now := time.Now()
+	// Update latest pending/triggered remediation for this server to healed
+	_, _ = db.conn.Exec(`
+		UPDATE remediations
+		SET status = 'healed', resolved_at = ?
+		WHERE id = (
+			SELECT id FROM remediations 
+			WHERE server_id = ? AND status IN ('triggered', 'in_progress')
+			ORDER BY created_at DESC
+			LIMIT 1
+		)
+	`, now, serverID)
+
+	_, err := db.conn.Exec(`
+		UPDATE servers
+		SET last_healed_at = ?, updated_at = ?
+		WHERE id = ?
+	`, now, now, serverID)
+	return err
+}
+
 
