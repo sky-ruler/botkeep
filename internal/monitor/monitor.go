@@ -95,7 +95,7 @@ func (e *Engine) runProbeSweep(ctx context.Context) {
 
 	var wg sync.WaitGroup
 	for _, s := range servers {
-		if s.Driver == "http" || s.Driver == "tcp" || s.Driver == "demo" {
+		if s.Driver == "http" || s.Driver == "tcp" || s.Driver == "grpc" || s.Driver == "dns" || s.Driver == "demo" {
 			wg.Add(1)
 			go func(srv models.Server) {
 				defer wg.Done()
@@ -106,7 +106,7 @@ func (e *Engine) runProbeSweep(ctx context.Context) {
 	wg.Wait()
 }
 
-// ProbeServer performs a health check probe against a single node (HTTP, HTTPS, TCP, or Simulated).
+// ProbeServer performs a health check probe against a single node (HTTP, HTTPS, TCP, gRPC, DNS, or Simulated).
 func (e *Engine) ProbeServer(ctx context.Context, s models.Server) error {
 	switch s.Driver {
 	case "http":
@@ -136,12 +136,25 @@ func (e *Engine) ProbeServer(ctx context.Context, s models.Server) error {
 		}
 		defer resp.Body.Close()
 
-		// Extract TLS certificate expiration if HTTPS
+		// Deep SSL & DNS inspection for HTTPS endpoints
 		if resp.TLS != nil && len(resp.TLS.PeerCertificates) > 0 {
 			cert := resp.TLS.PeerCertificates[0]
 			daysRemaining := int(time.Until(cert.NotAfter).Hours() / 24)
-			_ = e.db.UpdateSSLExpiry(s.ID, daysRemaining)
+			issuerOrg := cert.Issuer.CommonName
+			if len(cert.Issuer.Organization) > 0 {
+				issuerOrg = strings.Join(cert.Issuer.Organization, ", ")
+			}
+			sans := strings.Join(cert.DNSNames, ", ")
+			_ = e.db.UpdateSSLTelemetry(s.ID, daysRemaining, issuerOrg, sans, cert.NotAfter)
 		}
+
+		// Background DNS resolution check
+		go func(srv models.Server) {
+			dns := InspectDNS(context.Background(), srv.EndpointURL, 3*time.Second)
+			if dns != nil && dns.Success && len(dns.IPs) > 0 {
+				_ = e.db.UpdateDNSTelemetry(srv.ID, dns.LookupLatencyMS, strings.Join(dns.IPs, ", "))
+			}
+		}(s)
 
 		success := resp.StatusCode >= 200 && resp.StatusCode < 400
 		errMsg := ""
@@ -153,6 +166,54 @@ func (e *Engine) ProbeServer(ctx context.Context, s models.Server) error {
 		}
 
 		return e.db.RecordProbe(s.ID, latency, resp.StatusCode, success, errMsg)
+
+	case "grpc":
+		if s.EndpointURL == "" {
+			return nil
+		}
+
+		probe := ProbeGRPC(ctx, s.EndpointURL, s.GRPCService, 4*time.Second)
+
+		// Deep SSL check if GRPCS endpoint
+		if strings.HasPrefix(s.EndpointURL, "https://") || strings.HasPrefix(s.EndpointURL, "grpcs://") || strings.HasSuffix(s.EndpointURL, ":443") {
+			go func(srv models.Server) {
+				if ssl, err := InspectSSL(context.Background(), srv.EndpointURL, 3*time.Second); err == nil && ssl != nil {
+					_ = e.db.UpdateSSLTelemetry(srv.ID, ssl.DaysRemaining, ssl.Issuer, strings.Join(ssl.SANs, ", "), ssl.ValidTo)
+				}
+			}(s)
+		}
+
+		if !probe.Success {
+			_ = e.db.RecordProbe(s.ID, probe.LatencyMS, probe.StatusCode, false, probe.ErrorMessage)
+			e.dispatchAlert(s, false, probe.ErrorMessage)
+			return fmt.Errorf("gRPC probe failed: %s", probe.ErrorMessage)
+		}
+
+		if s.Status == "stopped" {
+			e.dispatchAlert(s, true, fmt.Sprintf("gRPC service %s OK", probe.ServingStatus))
+		}
+
+		return e.db.RecordProbe(s.ID, probe.LatencyMS, 200, true, "")
+
+	case "dns":
+		if s.EndpointURL == "" {
+			return nil
+		}
+
+		dns := InspectDNS(ctx, s.EndpointURL, 4*time.Second)
+		if !dns.Success {
+			_ = e.db.RecordProbe(s.ID, dns.LookupLatencyMS, 0, false, dns.Error)
+			e.dispatchAlert(s, false, dns.Error)
+			return fmt.Errorf("DNS resolution failed: %s", dns.Error)
+		}
+
+		_ = e.db.UpdateDNSTelemetry(s.ID, dns.LookupLatencyMS, strings.Join(dns.IPs, ", "))
+
+		if s.Status == "stopped" {
+			e.dispatchAlert(s, true, fmt.Sprintf("DNS resolved %d records", len(dns.IPs)))
+		}
+
+		return e.db.RecordProbe(s.ID, dns.LookupLatencyMS, 200, true, "")
 
 	case "tcp":
 		if s.EndpointURL == "" {

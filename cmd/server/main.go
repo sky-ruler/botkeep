@@ -84,7 +84,9 @@ func main() {
 
 	if *flagSeed {
 		log.Println("[Init] -seed flag specified: seeding demo fleet instances")
-		_ = db.SeedDemoFleet()
+		if err := db.SeedDemoFleet(); err != nil {
+			log.Printf("[Warn] SeedDemoFleet: %v", err)
+		}
 	}
 
 	// Initialize Chi Router

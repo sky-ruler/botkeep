@@ -67,6 +67,16 @@ templ DriverBadge(driver string) {
 				<span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
 				HTTP
 			</span>
+		case "grpc":
+			<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20 shadow-sm">
+				<span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+				gRPC
+			</span>
+		case "dns":
+			<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20 shadow-sm">
+				<span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+				DNS
+			</span>
 		case "tcp":
 			<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm">
 				<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
@@ -103,6 +113,10 @@ templ ProtocolBadge(proto string) {
 	switch strings.ToUpper(proto) {
 		case "HTTPS":
 			<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">HTTPS</span>
+		case "GRPC", "GRPCS":
+			<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">{ strings.ToUpper(proto) }</span>
+		case "DNS":
+			<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20">DNS</span>
 		case "TCP":
 			<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">TCP</span>
 		default:

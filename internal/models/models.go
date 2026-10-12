@@ -29,9 +29,15 @@ type Server struct {
 	Driver        string       `json:"driver"` // "http", "tcp", "system", "demo"
 	EndpointURL   string       `json:"endpoint_url"`
 	Protocol      string       `json:"protocol"` // "HTTP", "HTTPS", "TCP"
-	SSLExpiryDays int          `json:"ssl_expiry_days"`
-	IsPublic      bool         `json:"is_public"`
-	LatencyMS     float64      `json:"latency_ms"`
+	SSLExpiryDays    int                      `json:"ssl_expiry_days"`
+	SSLIssuer        string                   `json:"ssl_issuer"`
+	SSLSANs          string                   `json:"ssl_sans"`
+	SSLValidTo       *time.Time               `json:"ssl_valid_to,omitempty"`
+	DNSLatencyMS     float64                  `json:"dns_latency_ms"`
+	DNSRecords       string                   `json:"dns_records"`
+	GRPCService      string                   `json:"grpc_service"`
+	IsPublic         bool                     `json:"is_public"`
+	LatencyMS        float64                  `json:"latency_ms"`
 	UptimePct        float64                  `json:"uptime_pct"`
 	CPUUsage         float64                  `json:"cpu_usage"`
 	MemoryUsage      float64                  `json:"memory_usage"`
@@ -217,9 +223,36 @@ func NewDB(dbPath string) (*DB, error) {
 		"ALTER TABLE servers ADD COLUMN runbook_enabled INTEGER NOT NULL DEFAULT 0;",
 		"ALTER TABLE servers ADD COLUMN auto_heal_attempts INTEGER NOT NULL DEFAULT 0;",
 		"ALTER TABLE servers ADD COLUMN last_healed_at DATETIME;",
+		"ALTER TABLE servers ADD COLUMN ssl_issuer TEXT NOT NULL DEFAULT '';",
+		"ALTER TABLE servers ADD COLUMN ssl_sans TEXT NOT NULL DEFAULT '';",
+		"ALTER TABLE servers ADD COLUMN ssl_valid_to DATETIME;",
+		"ALTER TABLE servers ADD COLUMN dns_latency_ms REAL NOT NULL DEFAULT 0.0;",
+		"ALTER TABLE servers ADD COLUMN dns_records TEXT NOT NULL DEFAULT '';",
+		"ALTER TABLE servers ADD COLUMN grpc_service TEXT NOT NULL DEFAULT '';",
 	}
 	for _, m := range migrations {
 		_, _ = conn.Exec(m)
+	}
+
+	// Dynamic check-constraint migration if existing servers table has v1 constraints
+	var tableSQL string
+	_ = conn.QueryRow("SELECT sql FROM sqlite_master WHERE type='table' AND name='servers'").Scan(&tableSQL)
+	if tableSQL != "" && !strings.Contains(tableSQL, "'grpc'") {
+		_, _ = conn.Exec("PRAGMA foreign_keys = OFF;")
+		_, _ = conn.Exec("ALTER TABLE servers RENAME TO servers_old_v1;")
+		if _, err := conn.Exec(schemaSQL); err == nil {
+			_, _ = conn.Exec(`
+				INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
+				                     is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
+				                     last_checked, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at)
+				SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
+				       is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
+				       last_checked, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at
+				FROM servers_old_v1;
+			`)
+			_, _ = conn.Exec("DROP TABLE servers_old_v1;")
+		}
+		_, _ = conn.Exec("PRAGMA foreign_keys = ON;")
 	}
 
 	// Execute embedded schema (tables, foreign keys, indexes)
@@ -262,22 +295,29 @@ func (db *DB) GetServerByID(id string) (*Server, error) {
 	defer db.mu.RUnlock()
 
 	var s Server
-	var lastChecked, lastHealed sql.NullTime
+	var lastChecked, lastHealed, sslValidTo sql.NullTime
 	var isPublicInt, runbookEnabledInt int
 	err := db.conn.QueryRow(`
-		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
-		       cpu_usage, memory_usage, storage_usage, uptime, last_checked, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at
+		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
+		       ssl_issuer, ssl_sans, ssl_valid_to, dns_latency_ms, dns_records, grpc_service,
+		       is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
+		       last_checked, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at
 		FROM servers
 		WHERE id = ?
 	`, id).Scan(
-		&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays, &isPublicInt, &s.LatencyMS, &s.UptimePct,
-		&s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime, &lastChecked, &s.RunbookURL, &runbookEnabledInt, &s.AutoHealAttempts, &lastHealed, &s.CreatedAt, &s.UpdatedAt,
+		&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays,
+		&s.SSLIssuer, &s.SSLSANs, &sslValidTo, &s.DNSLatencyMS, &s.DNSRecords, &s.GRPCService,
+		&isPublicInt, &s.LatencyMS, &s.UptimePct, &s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime,
+		&lastChecked, &s.RunbookURL, &runbookEnabledInt, &s.AutoHealAttempts, &lastHealed, &s.CreatedAt, &s.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 	s.IsPublic = isPublicInt == 1
 	s.RunbookEnabled = runbookEnabledInt == 1
+	if sslValidTo.Valid {
+		s.SSLValidTo = &sslValidTo.Time
+	}
 	if lastChecked.Valid {
 		s.LastChecked = &lastChecked.Time
 	}
@@ -334,8 +374,10 @@ func (db *DB) SearchServers(query, status, region string) ([]Server, error) {
 	}
 
 	sqlQuery := `
-		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
-		       cpu_usage, memory_usage, storage_usage, uptime, last_checked, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at
+		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
+		       ssl_issuer, ssl_sans, ssl_valid_to, dns_latency_ms, dns_records, grpc_service,
+		       is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
+		       last_checked, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at
 		FROM servers
 	`
 	if len(conditions) > 0 {
@@ -351,17 +393,22 @@ func (db *DB) SearchServers(query, status, region string) ([]Server, error) {
 	var servers []Server
 	for rows.Next() {
 		var s Server
-		var lastChecked, lastHealed sql.NullTime
+		var lastChecked, lastHealed, sslValidTo sql.NullTime
 		var isPublicInt, runbookEnabledInt int
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays, &isPublicInt, &s.LatencyMS, &s.UptimePct,
-			&s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime, &lastChecked, &s.RunbookURL, &runbookEnabledInt, &s.AutoHealAttempts, &lastHealed, &s.CreatedAt, &s.UpdatedAt,
+			&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays,
+			&s.SSLIssuer, &s.SSLSANs, &sslValidTo, &s.DNSLatencyMS, &s.DNSRecords, &s.GRPCService,
+			&isPublicInt, &s.LatencyMS, &s.UptimePct, &s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime,
+			&lastChecked, &s.RunbookURL, &runbookEnabledInt, &s.AutoHealAttempts, &lastHealed, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
 		s.IsPublic = isPublicInt == 1
 		s.RunbookEnabled = runbookEnabledInt == 1
+		if sslValidTo.Valid {
+			s.SSLValidTo = &sslValidTo.Time
+		}
 		if lastChecked.Valid {
 			s.LastChecked = &lastChecked.Time
 		}
@@ -567,7 +614,7 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 	protocol := "HTTP"
 	sslExpiryDays := -1
 
-	// Resolve real DNS IP if an HTTP/HTTPS or TCP endpoint URL is provided
+	// Resolve real DNS IP if an HTTP/HTTPS, TCP, gRPC, or DNS endpoint URL is provided
 	if driver == "http" && endpointURL != "" {
 		if strings.HasPrefix(strings.ToLower(endpointURL), "https://") {
 			protocol = "HTTPS"
@@ -581,6 +628,39 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 					ip = host
 				}
 			}
+		}
+	} else if driver == "grpc" && endpointURL != "" {
+		protocol = "GRPC"
+		if strings.HasPrefix(strings.ToLower(endpointURL), "https://") || strings.HasPrefix(strings.ToLower(endpointURL), "grpcs://") || strings.HasSuffix(endpointURL, ":443") {
+			protocol = "GRPCS"
+		}
+		raw := endpointURL
+		if strings.Contains(raw, "://") {
+			if u, err := url.Parse(raw); err == nil && u.Host != "" {
+				raw = u.Host
+			}
+		}
+		if h, _, err := net.SplitHostPort(raw); err == nil && h != "" {
+			if ips, err := net.LookupIP(h); err == nil && len(ips) > 0 {
+				ip = ips[0].String()
+			} else {
+				ip = h
+			}
+		} else {
+			ip = raw
+		}
+	} else if driver == "dns" && endpointURL != "" {
+		protocol = "DNS"
+		host := endpointURL
+		if strings.Contains(host, "://") {
+			if u, err := url.Parse(host); err == nil && u.Hostname() != "" {
+				host = u.Hostname()
+			}
+		}
+		if ips, err := net.LookupIP(host); err == nil && len(ips) > 0 {
+			ip = ips[0].String()
+		} else {
+			ip = host
 		}
 	} else if driver == "tcp" && endpointURL != "" {
 		protocol = "TCP"
@@ -624,9 +704,11 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 	}
 
 	_, err := db.conn.Exec(`
-		INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
-		                     cpu_usage, memory_usage, storage_usage, uptime, runbook_url, runbook_enabled, auto_heal_attempts, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 0, 0, ?, ?)
+		INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
+		                     ssl_issuer, ssl_sans, ssl_valid_to, dns_latency_ms, dns_records, grpc_service,
+		                     is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
+		                     runbook_url, runbook_enabled, auto_heal_attempts, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', '', NULL, 0.0, '', '', ?, ?, ?, ?, ?, ?, ?, '', 0, 0, ?, ?)
 	`, server.ID, server.Name, server.IPAddress, server.Region, server.Status, server.Driver, server.EndpointURL,
 		server.Protocol, server.SSLExpiryDays, 1, server.LatencyMS, server.UptimePct, server.CPUUsage, server.MemoryUsage,
 		server.StorageUsage, server.Uptime, server.CreatedAt, server.UpdatedAt)
@@ -652,6 +734,28 @@ func (db *DB) UpdateSSLExpiry(serverID string, days int) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	_, err := db.conn.Exec("UPDATE servers SET ssl_expiry_days = ? WHERE id = ?", days, serverID)
+	return err
+}
+
+func (db *DB) UpdateSSLTelemetry(serverID string, days int, issuer string, sans string, validTo time.Time) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	_, err := db.conn.Exec(`
+		UPDATE servers
+		SET ssl_expiry_days = ?, ssl_issuer = ?, ssl_sans = ?, ssl_valid_to = ?, updated_at = ?
+		WHERE id = ?
+	`, days, issuer, sans, validTo, time.Now(), serverID)
+	return err
+}
+
+func (db *DB) UpdateDNSTelemetry(serverID string, latency float64, records string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	_, err := db.conn.Exec(`
+		UPDATE servers
+		SET dns_latency_ms = ?, dns_records = ?, updated_at = ?
+		WHERE id = ?
+	`, latency, records, time.Now(), serverID)
 	return err
 }
 
@@ -905,6 +1009,10 @@ func (db *DB) SeedDemoFleet() error {
 			EndpointURL:   "https://cloudflare.com",
 			Protocol:      "HTTPS",
 			SSLExpiryDays: 142,
+			SSLIssuer:     "Cloudflare Inc ECC CA-3",
+			SSLSANs:       "cloudflare.com, *.cloudflare.com",
+			DNSLatencyMS:  4.1,
+			DNSRecords:    "104.16.124.96, 104.16.123.96",
 			LatencyMS:     18.4,
 			UptimePct:     99.99,
 			CPUUsage:      22.3,
@@ -914,6 +1022,47 @@ func (db *DB) SeedDemoFleet() error {
 			CreatedAt:     now.Add(-24 * 31 * time.Hour),
 			UpdatedAt:     now,
 		},
+		{
+			ID:            "srv-eu-202",
+			Name:          "payment-grpc-gateway",
+			IPAddress:     "10.0.2.110",
+			Region:        "eu-central-1",
+			Status:        "active",
+			Driver:        "grpc",
+			EndpointURL:   "grpc.payment.internal:50051",
+			Protocol:      "GRPC",
+			GRPCService:   "payment.v1.PaymentService",
+			SSLExpiryDays: -1,
+			LatencyMS:     12.4,
+			UptimePct:     99.97,
+			CPUUsage:      28.4,
+			MemoryUsage:   52.1,
+			StorageUsage:  24.0,
+			Uptime:        "14d 6h",
+			CreatedAt:     now.Add(-24 * 14 * time.Hour),
+			UpdatedAt:     now,
+		},
+		{
+			ID:            "srv-us-103",
+			Name:          "auth0-identity-dns",
+			IPAddress:     "104.16.155.36",
+			Region:        "us-east-1",
+			Status:        "active",
+			Driver:        "dns",
+			EndpointURL:   "auth.internal.corp",
+			Protocol:      "DNS",
+			DNSLatencyMS:  8.2,
+			DNSRecords:    "104.16.155.36, 104.16.156.36",
+			SSLExpiryDays: -1,
+			LatencyMS:     8.2,
+			UptimePct:     100.0,
+			CPUUsage:      14.0,
+			MemoryUsage:   32.0,
+			StorageUsage:  18.0,
+			Uptime:        "45d 10h",
+			CreatedAt:     now.Add(-24 * 45 * time.Hour),
+			UpdatedAt:     now,
+		},
 	}
 
 	for _, s := range demoServers {
@@ -921,7 +1070,15 @@ func (db *DB) SeedDemoFleet() error {
 		runbookEnabled := 0
 		autoHealAttempts := 0
 		var lastHealedAt any = nil
+		var sslValidTo any = nil
+		if s.SSLExpiryDays > 0 {
+			sslValidTo = now.Add(time.Duration(s.SSLExpiryDays) * 24 * time.Hour)
+		}
 		if s.ID == "srv-us-101" {
+			s.SSLIssuer = "DigiCert TLS RSA SHA256 2020 CA1"
+			s.SSLSANs = "github.com, www.github.com, *.github.com"
+			s.DNSLatencyMS = 14.5
+			s.DNSRecords = "140.82.112.4"
 			runbookURL = "https://api.github.com/repos/org/repo/actions/workflows/restart.yml/dispatches"
 			runbookEnabled = 1
 			autoHealAttempts = 1
@@ -934,11 +1091,15 @@ func (db *DB) SeedDemoFleet() error {
 		}
 
 		_, err := db.conn.Exec(`
-			INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days, is_public, latency_ms, uptime_pct,
-			                     cpu_usage, memory_usage, storage_usage, uptime, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, s.ID, s.Name, s.IPAddress, s.Region, s.Status, s.Driver, s.EndpointURL, s.Protocol, s.SSLExpiryDays, 1, s.LatencyMS, s.UptimePct,
-			s.CPUUsage, s.MemoryUsage, s.StorageUsage, s.Uptime, runbookURL, runbookEnabled, autoHealAttempts, lastHealedAt, s.CreatedAt, s.UpdatedAt)
+			INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
+			                     ssl_issuer, ssl_sans, ssl_valid_to, dns_latency_ms, dns_records, grpc_service,
+			                     is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
+			                     runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, s.ID, s.Name, s.IPAddress, s.Region, s.Status, s.Driver, s.EndpointURL, s.Protocol, s.SSLExpiryDays,
+			s.SSLIssuer, s.SSLSANs, sslValidTo, s.DNSLatencyMS, s.DNSRecords, s.GRPCService,
+			1, s.LatencyMS, s.UptimePct, s.CPUUsage, s.MemoryUsage, s.StorageUsage, s.Uptime,
+			runbookURL, runbookEnabled, autoHealAttempts, lastHealedAt, s.CreatedAt, s.UpdatedAt)
 		if err != nil {
 			return err
 		}

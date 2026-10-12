@@ -227,8 +227,8 @@ func (h *Handler) CreateServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Trigger immediate health probe if HTTP driver
-	if newSrv != nil && newSrv.Driver == "http" && h.monitor != nil {
+	// Trigger immediate health probe if network driver
+	if newSrv != nil && (newSrv.Driver == "http" || newSrv.Driver == "tcp" || newSrv.Driver == "grpc" || newSrv.Driver == "dns") && h.monitor != nil {
 		go func(id string) {
 			_, _ = h.monitor.ProbeNow(context.Background(), id)
 		}(newSrv.ID)

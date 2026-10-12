@@ -26,6 +26,7 @@ type FleetTarget struct {
 	URL            string `yaml:"url"`
 	Protocol       string `yaml:"protocol,omitempty"`
 	Region         string `yaml:"region,omitempty"`
+	GRPCService    string `yaml:"grpc_service,omitempty"`
 	RunbookURL     string `yaml:"runbook_url,omitempty"`
 	RunbookEnabled bool   `yaml:"runbook_enabled,omitempty"`
 	Public         *bool  `yaml:"public,omitempty"`
@@ -70,6 +71,7 @@ func ExportFleetConfig(db *models.DB) ([]byte, error) {
 			URL:            s.EndpointURL,
 			Protocol:       s.Protocol,
 			Region:         s.Region,
+			GRPCService:    s.GRPCService,
 			RunbookURL:     s.RunbookURL,
 			RunbookEnabled: s.RunbookEnabled,
 			Public:         &isPublic,

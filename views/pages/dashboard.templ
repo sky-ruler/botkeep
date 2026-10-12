@@ -153,6 +153,8 @@ templ Dashboard(servers []models.Server, metrics *models.ClusterMetrics, logs []
 						class="w-full sm:w-auto px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded-md text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
 					>
 						<option value="http">HTTP / HTTPS</option>
+						<option value="grpc">gRPC Health Check</option>
+						<option value="dns">DNS Resolution</option>
 						<option value="tcp">TCP Socket / DB</option>
 						<option value="demo">Simulated Node</option>
 					</select>
