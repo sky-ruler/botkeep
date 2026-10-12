@@ -28,11 +28,13 @@
 > 📘 **Want the complete breakdown? Read [BotKeep Explained: From Beginner to DevOps Pro](docs/EXPLAINED.md).**
 
 Think of BotKeep as a **24/7 personal doctor for your websites, databases, and microservices**:
-- **Checks the Pulse**: Every 15 seconds, it pings your web apps and checks your database ports to make sure they are healthy.
-- **Inspects Security**: Intercepts HTTPS peer certificates and tracks days remaining before SSL expiration.
-- **Measures Speed**: Tells you exactly how fast they respond in sub-millisecond precision.
-- **Tracks Reliability (SLA)**: Calculates your rolling uptime compliance percentage over time.
-- **Integrates Everywhere**: Includes native Prometheus `/metrics/prometheus` scraping and 1-click JSON configuration backups.
+- **Multi-Protocol Health Checks**: Pings HTTP/HTTPS, dials TCP sockets, executes native `grpc.health.v1` probes, and audits DNS resolution.
+- **SSL/TLS & Domain Intelligence**: Intercepts TLS handshakes to extract Certificate Authority, Common Name, SANs, and countdown to expiration.
+- **Automated Self-Healing Runbooks**: Dispatches automated remediation webhooks (GitHub Actions, Docker restarts, Kubernetes rollouts) to fix outages before escalating to humans.
+- **Declarative GitOps Mode (`fleet.yaml`)**: Manage your entire monitoring infrastructure as code (`botkeep export-fleet` / `botkeep -fleet fleet.yaml`).
+- **Zero-Config Satellite Mesh**: Deploy edge satellites (`botkeep agent`) with multi-region consensus shields to eliminate false alarms.
+- **Instant Public Status Page (`/status`)**: Zero-cost public uptime dashboard with incident reporting and markdown updates.
+- **1-Click Push Alerts**: Pre-integrated push delivery for Discord, Slack, Telegram, and ntfy.sh with zero glue code.
 - **Works on Any Screen**: 100% responsive layout with mobile drawer navigation, responsive grids, and scrollable data tables.
 - **Zero Bloat / Zero Setup**: No separate database (MySQL/Postgres) and no Node.js needed. A single, self-contained executable file that starts in under 4 milliseconds.
 
