@@ -3,10 +3,12 @@ package models
 import (
 	"database/sql"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
 	"net/url"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -50,6 +52,41 @@ type Incident struct {
 	Message            string     `json:"message"`
 	CreatedAt          time.Time  `json:"created_at"`
 	ResolvedAt         *time.Time `json:"resolved_at,omitempty"`
+}
+
+type NotificationChannel struct {
+	ID               string     `json:"id"`
+	Name             string     `json:"name"`
+	ChannelType      string     `json:"channel_type"` // "discord", "slack", "telegram", "ntfy", "webhook"
+	ConfigJSON       string     `json:"config_json"`
+	Enabled          bool       `json:"enabled"`
+	Events           string     `json:"events"` // "down,recovery", "all", "down"
+	CreatedAt        time.Time  `json:"created_at"`
+	LastDispatchedAt *time.Time `json:"last_dispatched_at,omitempty"`
+}
+
+type DiscordConfig struct {
+	WebhookURL string `json:"webhook_url"`
+}
+
+type SlackConfig struct {
+	WebhookURL string `json:"webhook_url"`
+}
+
+type TelegramConfig struct {
+	BotToken string `json:"bot_token"`
+	ChatID   string `json:"chat_id"`
+}
+
+type NtfyConfig struct {
+	Server string `json:"server"` // e.g. "https://ntfy.sh"
+	Topic  string `json:"topic"`
+}
+
+type WebhookConfig struct {
+	URL         string            `json:"url"`
+	SecretToken string            `json:"secret_token,omitempty"`
+	Headers     map[string]string `json:"headers,omitempty"`
 }
 
 type ProbePoint struct {
@@ -144,6 +181,8 @@ func NewDB(dbPath string) (*DB, error) {
 	if err == nil && count == 0 {
 		_ = db.SeedDemoFleet()
 	}
+
+	_ = db.BootstrapNotificationChannels()
 
 	return db, nil
 }
@@ -577,9 +616,6 @@ func (db *DB) ClearAllServers() error {
 }
 
 func (db *DB) GetMetrics() (*ClusterMetrics, error) {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
-
 	servers, err := db.GetAllServers()
 	if err != nil {
 		return nil, err
@@ -1053,4 +1089,222 @@ func GetHostMetrics() HostMetrics {
 		Arch:         runtime.GOARCH,
 		NumCPU:       runtime.NumCPU(),
 	}
+}
+
+// GetNotificationChannels returns all configured notification channels ordered by creation time.
+func (db *DB) GetNotificationChannels() ([]NotificationChannel, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	rows, err := db.conn.Query(`
+		SELECT id, name, channel_type, config_json, enabled, events, created_at, last_dispatched_at
+		FROM notification_channels
+		ORDER BY created_at ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var channels []NotificationChannel
+	for rows.Next() {
+		var nc NotificationChannel
+		var lastDisp sql.NullTime
+		if err := rows.Scan(&nc.ID, &nc.Name, &nc.ChannelType, &nc.ConfigJSON, &nc.Enabled, &nc.Events, &nc.CreatedAt, &lastDisp); err != nil {
+			return nil, err
+		}
+		if lastDisp.Valid {
+			nc.LastDispatchedAt = &lastDisp.Time
+		}
+		channels = append(channels, nc)
+	}
+	return channels, nil
+}
+
+// GetActiveNotificationChannels returns all enabled notification channels.
+func (db *DB) GetActiveNotificationChannels() ([]NotificationChannel, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	rows, err := db.conn.Query(`
+		SELECT id, name, channel_type, config_json, enabled, events, created_at, last_dispatched_at
+		FROM notification_channels
+		WHERE enabled = 1
+		ORDER BY created_at ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var channels []NotificationChannel
+	for rows.Next() {
+		var nc NotificationChannel
+		var lastDisp sql.NullTime
+		if err := rows.Scan(&nc.ID, &nc.Name, &nc.ChannelType, &nc.ConfigJSON, &nc.Enabled, &nc.Events, &nc.CreatedAt, &lastDisp); err != nil {
+			return nil, err
+		}
+		if lastDisp.Valid {
+			nc.LastDispatchedAt = &lastDisp.Time
+		}
+		channels = append(channels, nc)
+	}
+	return channels, nil
+}
+
+// GetNotificationChannelByID retrieves a notification channel by its ID.
+func (db *DB) GetNotificationChannelByID(id string) (*NotificationChannel, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var nc NotificationChannel
+	var lastDisp sql.NullTime
+	err := db.conn.QueryRow(`
+		SELECT id, name, channel_type, config_json, enabled, events, created_at, last_dispatched_at
+		FROM notification_channels
+		WHERE id = ?
+	`, id).Scan(&nc.ID, &nc.Name, &nc.ChannelType, &nc.ConfigJSON, &nc.Enabled, &nc.Events, &nc.CreatedAt, &lastDisp)
+	if err != nil {
+		return nil, err
+	}
+	if lastDisp.Valid {
+		nc.LastDispatchedAt = &lastDisp.Time
+	}
+	return &nc, nil
+}
+
+// CreateNotificationChannel persists a new notification channel into SQLite.
+func (db *DB) CreateNotificationChannel(nc NotificationChannel) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	if nc.ID == "" {
+		nc.ID = fmt.Sprintf("nc-%s-%d", nc.ChannelType, time.Now().UnixNano()%100000)
+	}
+	if nc.Events == "" {
+		nc.Events = "down,recovery"
+	}
+
+	_, err := db.conn.Exec(`
+		INSERT INTO notification_channels (id, name, channel_type, config_json, enabled, events, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`, nc.ID, nc.Name, nc.ChannelType, nc.ConfigJSON, nc.Enabled, nc.Events)
+	return err
+}
+
+// ToggleNotificationChannel toggles the enabled status of a notification channel.
+func (db *DB) ToggleNotificationChannel(id string) (bool, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	var current bool
+	err := db.conn.QueryRow(`SELECT enabled FROM notification_channels WHERE id = ?`, id).Scan(&current)
+	if err != nil {
+		return false, err
+	}
+
+	newState := !current
+	_, err = db.conn.Exec(`UPDATE notification_channels SET enabled = ? WHERE id = ?`, newState, id)
+	return newState, err
+}
+
+// DeleteNotificationChannel removes a notification channel from SQLite.
+func (db *DB) DeleteNotificationChannel(id string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	_, err := db.conn.Exec(`DELETE FROM notification_channels WHERE id = ?`, id)
+	return err
+}
+
+// UpdateNotificationChannelLastDispatched updates the last_dispatched_at timestamp.
+func (db *DB) UpdateNotificationChannelLastDispatched(id string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	_, err := db.conn.Exec(`UPDATE notification_channels SET last_dispatched_at = CURRENT_TIMESTAMP WHERE id = ?`, id)
+	return err
+}
+
+// BootstrapNotificationChannels loads environment variable presets and seeds default presets if empty.
+func (db *DB) BootstrapNotificationChannels() error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	// 1. Env-based Discord Webhook
+	if discordURL := strings.TrimSpace(os.Getenv("BOTKEEP_DISCORD_WEBHOOK")); discordURL != "" {
+		cfgJSON, _ := json.Marshal(DiscordConfig{WebhookURL: discordURL})
+		_, _ = db.conn.Exec(`
+			INSERT INTO notification_channels (id, name, channel_type, config_json, enabled, events)
+			VALUES ('nc-env-discord', 'Discord Ops Alerts', 'discord', ?, 1, 'down,recovery')
+			ON CONFLICT(id) DO UPDATE SET config_json = excluded.config_json, enabled = 1
+		`, string(cfgJSON))
+	}
+
+	// 2. Env-based Slack Webhook
+	if slackURL := strings.TrimSpace(os.Getenv("BOTKEEP_SLACK_WEBHOOK")); slackURL != "" {
+		cfgJSON, _ := json.Marshal(SlackConfig{WebhookURL: slackURL})
+		_, _ = db.conn.Exec(`
+			INSERT INTO notification_channels (id, name, channel_type, config_json, enabled, events)
+			VALUES ('nc-env-slack', 'Slack Incident Channel', 'slack', ?, 1, 'down,recovery')
+			ON CONFLICT(id) DO UPDATE SET config_json = excluded.config_json, enabled = 1
+		`, string(cfgJSON))
+	}
+
+	// 3. Env-based Telegram Bot
+	telegramToken := strings.TrimSpace(os.Getenv("BOTKEEP_TELEGRAM_BOT_TOKEN"))
+	telegramChatID := strings.TrimSpace(os.Getenv("BOTKEEP_TELEGRAM_CHAT_ID"))
+	if telegramToken != "" && telegramChatID != "" {
+		cfgJSON, _ := json.Marshal(TelegramConfig{BotToken: telegramToken, ChatID: telegramChatID})
+		_, _ = db.conn.Exec(`
+			INSERT INTO notification_channels (id, name, channel_type, config_json, enabled, events)
+			VALUES ('nc-env-telegram', 'Telegram Emergency Bot', 'telegram', ?, 1, 'down,recovery')
+			ON CONFLICT(id) DO UPDATE SET config_json = excluded.config_json, enabled = 1
+		`, string(cfgJSON))
+	}
+
+	// 4. Env-based ntfy.sh Topic
+	if ntfyTopic := strings.TrimSpace(os.Getenv("BOTKEEP_NTFY_TOPIC")); ntfyTopic != "" {
+		server := strings.TrimSpace(os.Getenv("BOTKEEP_NTFY_SERVER"))
+		if server == "" {
+			server = "https://ntfy.sh"
+		}
+		cfgJSON, _ := json.Marshal(NtfyConfig{Server: server, Topic: ntfyTopic})
+		_, _ = db.conn.Exec(`
+			INSERT INTO notification_channels (id, name, channel_type, config_json, enabled, events)
+			VALUES ('nc-env-ntfy', 'ntfy Phone Push', 'ntfy', ?, 1, 'down,recovery')
+			ON CONFLICT(id) DO UPDATE SET config_json = excluded.config_json, enabled = 1
+		`, string(cfgJSON))
+	}
+
+	// 5. Env-based Generic Webhook
+	if webhookURL := strings.TrimSpace(os.Getenv("BOTKEEP_WEBHOOK_URL")); webhookURL != "" {
+		cfgJSON, _ := json.Marshal(WebhookConfig{URL: webhookURL})
+		_, _ = db.conn.Exec(`
+			INSERT INTO notification_channels (id, name, channel_type, config_json, enabled, events)
+			VALUES ('nc-env-webhook', 'Enterprise Webhook Relay', 'webhook', ?, 1, 'down,recovery')
+			ON CONFLICT(id) DO UPDATE SET config_json = excluded.config_json, enabled = 1
+		`, string(cfgJSON))
+	}
+
+	// Check if table is empty, seed demo channels so user has immediate working examples
+	var count int
+	_ = db.conn.QueryRow(`SELECT COUNT(*) FROM notification_channels`).Scan(&count)
+	if count == 0 {
+		dCfg, _ := json.Marshal(DiscordConfig{WebhookURL: "https://discord.com/api/webhooks/demo/sample-token"})
+		tCfg, _ := json.Marshal(TelegramConfig{BotToken: "123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ", ChatID: "-100123456789"})
+		nCfg, _ := json.Marshal(NtfyConfig{Server: "https://ntfy.sh", Topic: "botkeep-demo-alerts"})
+		wCfg, _ := json.Marshal(WebhookConfig{URL: "https://httpbin.org/post"})
+
+		_, _ = db.conn.Exec(`
+			INSERT INTO notification_channels (id, name, channel_type, config_json, enabled, events)
+			VALUES 
+			('nc-discord-01', 'DevOps Discord Webhook', 'discord', ?, 1, 'down,recovery'),
+			('nc-telegram-01', 'On-Call Telegram Bot', 'telegram', ?, 0, 'down,recovery'),
+			('nc-ntfy-01', 'Instant Mobile Push (ntfy.sh)', 'ntfy', ?, 1, 'down,recovery'),
+			('nc-webhook-01', 'Incident Management Webhook', 'webhook', ?, 0, 'all')
+		`, string(dCfg), string(tCfg), string(nCfg), string(wCfg))
+	}
+
+	return nil
 }

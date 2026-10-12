@@ -105,7 +105,51 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
 
 ---
 
-### 4. Fleet Node Management & Multi-Protocol Probing
+### 4. Multi-Channel Alerting & Push Notifications
+
+#### `GET /notifications`
+- **Description**: Renders the complete Notification Channels & Alerting Management UI.
+- **Response**: `200 OK` (`text/html`)
+
+#### `GET /notifications/list`
+- **Description**: Returns the rendered HTMX partial containing the list of configured notification channels.
+- **Response**: `200 OK` (`text/html`)
+
+#### `POST /admin/notifications/new`
+- **Description**: Provisions a new alert delivery channel with native presets.
+- **Form Parameters**:
+  - `name` *(string, required)*: Descriptive label (e.g. `DevOps Discord Alerts`).
+  - `channel_type` *(string, required)*: Preset driver: `discord`, `telegram`, `slack`, `ntfy`, or `webhook`.
+  - `webhook_url` *(string, for discord/slack/webhook)*: Webhook delivery URL.
+  - `telegram_token` & `telegram_chat_id` *(string, for telegram)*: Bot token and chat ID.
+  - `ntfy_topic` & `ntfy_server` *(string, for ntfy)*: ntfy topic name and server URL (`https://ntfy.sh`).
+  - `events_down` & `events_recovery` *(checkbox)*: Subscribed incident transitions.
+- **Response**: `200 OK` (`text/html`) with updated `@pages.ChannelsList` partial.
+
+#### `POST /admin/notifications/{id}/toggle`
+- **Description**: Toggles channel enabled/paused state without deleting configuration.
+- **Response**: `200 OK` (`text/html`) with updated channels list.
+
+#### `DELETE /admin/notifications/{id}`
+- **Description**: Removes an alert channel.
+- **Response**: `200 OK` (`text/html`) with updated channels list.
+
+#### `POST /admin/notifications/{id}/test`
+- **Description**: Dispatches an immediate verification test alert ping to the specified channel.
+- **Response**: `200 OK` (`text/html`) with `@components.Toast` notification.
+
+#### `POST /admin/notifications/test-all`
+- **Description**: Concurrently broadcasts test alerts across all active notification channels.
+- **Response**: `200 OK` (`text/html`) with `@components.Toast` notification.
+
+#### `GET /api/notifications`
+- **Description**: Programmatic JSON endpoint returning configured alert channels with masked credentials.
+- **CORS**: `Access-Control-Allow-Origin: *`
+- **Response**: `200 OK` (`application/json`)
+
+---
+
+### 5. Fleet Node Management & Multi-Protocol Probing
 
 #### `GET /servers`
 - **Description**: Queries and filters the fleet node catalog.

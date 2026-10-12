@@ -1,0 +1,398 @@
+package pages
+
+import (
+	"fmt"
+	"strings"
+	"botkeep/internal/models"
+	"botkeep/views/components"
+	"botkeep/views/layouts"
+)
+
+templ NotificationsPage(channels []models.NotificationChannel) {
+	@layouts.Base("Alert Channels & Notifications") {
+		<!-- Top Action Bar & Header -->
+		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800/60">
+			<div>
+				<div class="flex items-center gap-2">
+					<div class="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+						@components.IconBell("w-5 h-5")
+					</div>
+					<h1 class="text-lg sm:text-xl font-semibold tracking-tight text-zinc-100">Alert Channels & Push Notifications</h1>
+				</div>
+				<p class="text-xs text-zinc-400 mt-1">Zero-glue multi-channel delivery presets. Instant push notifications to Discord, Telegram, Slack, ntfy.sh, and webhooks with zero relay servers.</p>
+			</div>
+			<div class="flex flex-wrap items-center gap-2">
+				<!-- Send Global Test Alert Button -->
+				<button
+					type="button"
+					hx-post="/admin/notifications/test-all"
+					hx-target="#toast-container"
+					hx-swap="beforeend"
+					class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 active:bg-amber-500/30 transition-colors shadow-sm cursor-pointer"
+					title="Send a test alert across all active notification channels"
+				>
+					@components.IconSend("w-3.5 h-3.5")
+					<span>Broadcast Test Alert</span>
+				</button>
+				<!-- Jump to Add Channel Form -->
+				<button
+					type="button"
+					onclick="document.getElementById('new-channel-form').scrollIntoView({ behavior: 'smooth' }); document.getElementById('channel-name-input').focus();"
+					class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 text-zinc-950 hover:bg-white active:bg-zinc-200 transition-colors shadow-sm cursor-pointer"
+				>
+					@components.IconPlus("w-3.5 h-3.5")
+					<span>Add Channel</span>
+				</button>
+			</div>
+		</div>
+
+		<!-- Protocol Presets Overview Cards -->
+		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
+			<!-- Discord Card -->
+			<div class="p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all">
+				<div class="flex items-center gap-2 mb-1.5">
+					<div class="w-2 h-2 rounded-full bg-[#5865F2]"></div>
+					<span class="text-xs font-semibold text-zinc-200">Discord</span>
+				</div>
+				<p class="text-[11px] text-zinc-400">Rich embed cards with outage & recovery color pills.</p>
+			</div>
+			<!-- Telegram Card -->
+			<div class="p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all">
+				<div class="flex items-center gap-2 mb-1.5">
+					<div class="w-2 h-2 rounded-full bg-[#229ED9]"></div>
+					<span class="text-xs font-semibold text-zinc-200">Telegram</span>
+				</div>
+				<p class="text-[11px] text-zinc-400">Direct Bot API messaging with formatted HTML alerts.</p>
+			</div>
+			<!-- Slack Card -->
+			<div class="p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all">
+				<div class="flex items-center gap-2 mb-1.5">
+					<div class="w-2 h-2 rounded-full bg-[#E01E5A]"></div>
+					<span class="text-xs font-semibold text-zinc-200">Slack</span>
+				</div>
+				<p class="text-[11px] text-zinc-400">Incident attachments with structured telemetry blocks.</p>
+			</div>
+			<!-- ntfy.sh Card -->
+			<div class="p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all">
+				<div class="flex items-center gap-2 mb-1.5">
+					<div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+					<span class="text-xs font-semibold text-zinc-200">ntfy.sh</span>
+				</div>
+				<p class="text-[11px] text-zinc-400">100% free instant phone push alerts without an account.</p>
+			</div>
+			<!-- Custom Webhook Card -->
+			<div class="p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all col-span-2 sm:col-span-1">
+				<div class="flex items-center gap-2 mb-1.5">
+					<div class="w-2 h-2 rounded-full bg-purple-400"></div>
+					<span class="text-xs font-semibold text-zinc-200">Webhook</span>
+				</div>
+				<p class="text-[11px] text-zinc-400">JSON HTTP POST with secret HMAC/Bearer headers.</p>
+			</div>
+		</div>
+
+		<!-- Configured Channels Section -->
+		<div class="space-y-3 pt-2">
+			<div class="flex items-center justify-between">
+				<h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Configured Notification Channels</h2>
+				<span class="text-xs text-zinc-400 font-mono">{ fmt.Sprintf("%d channels registered", len(channels)) }</span>
+			</div>
+
+			<div id="channels-list" class="space-y-3">
+				@ChannelsList(channels)
+			</div>
+		</div>
+
+		<!-- Provision New Channel Form Card -->
+		<div id="new-channel-form" class="mt-8 bg-zinc-900/70 border border-zinc-800/80 rounded-xl p-5 shadow-lg space-y-4">
+			<div class="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+				<div>
+					<h3 class="text-sm font-semibold text-zinc-100">Add Notification Channel</h3>
+					<p class="text-xs text-zinc-400 mt-0.5">Configure a new alerting endpoint for instant downtime and recovery dispatches.</p>
+				</div>
+				<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700">Zero Glue Code</span>
+			</div>
+
+			<form
+				hx-post="/admin/notifications/new"
+				hx-target="#channels-list"
+				hx-swap="innerHTML"
+				class="space-y-4"
+				onsubmit="setTimeout(() => this.reset(), 100);"
+			>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<!-- Channel Name -->
+					<div>
+						<label class="block text-xs font-medium text-zinc-300 mb-1">Channel Label</label>
+						<input
+							type="text"
+							id="channel-name-input"
+							name="name"
+							placeholder="e.g. SRE Discord Ops Channel"
+							required
+							class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans"
+						/>
+					</div>
+
+					<!-- Channel Type -->
+					<div>
+						<label class="block text-xs font-medium text-zinc-300 mb-1">Preset Driver</label>
+						<select
+							name="channel_type"
+							id="channel-type-select"
+							onchange="updateChannelFields(this.value)"
+							class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-200 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer"
+						>
+							<option value="discord">Discord Webhook</option>
+							<option value="slack">Slack Incoming Webhook</option>
+							<option value="telegram">Telegram Bot</option>
+							<option value="ntfy">ntfy.sh (Instant Mobile Phone Push)</option>
+							<option value="webhook">Generic HTTP Webhook</option>
+						</select>
+					</div>
+				</div>
+
+				<!-- Dynamic Configuration Inputs -->
+				<div id="field-webhook" class="space-y-2">
+					<label class="block text-xs font-medium text-zinc-300 mb-1">Webhook URL</label>
+					<input
+						type="url"
+						name="webhook_url"
+						placeholder="https://discord.com/api/webhooks/... or https://hooks.slack.com/..."
+						class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono"
+					/>
+					<p class="text-[11px] text-zinc-400">For Discord: Channel Settings → Integrations → Webhooks → Copy Webhook URL.</p>
+				</div>
+
+				<div id="field-telegram" class="hidden grid-cols-1 md:grid-cols-2 gap-4">
+					<div>
+						<label class="block text-xs font-medium text-zinc-300 mb-1">Telegram Bot Token</label>
+						<input
+							type="text"
+							name="telegram_token"
+							placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+							class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono"
+						/>
+						<p class="text-[11px] text-zinc-400 mt-1">Obtained from @BotFather on Telegram.</p>
+					</div>
+					<div>
+						<label class="block text-xs font-medium text-zinc-300 mb-1">Telegram Chat ID</label>
+						<input
+							type="text"
+							name="telegram_chat_id"
+							placeholder="e.g. -100123456789 or 987654321"
+							class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono"
+						/>
+						<p class="text-[11px] text-zinc-400 mt-1">Target user ID or group chat ID.</p>
+					</div>
+				</div>
+
+				<div id="field-ntfy" class="hidden grid-cols-1 md:grid-cols-2 gap-4">
+					<div>
+						<label class="block text-xs font-medium text-zinc-300 mb-1">ntfy Topic</label>
+						<input
+							type="text"
+							name="ntfy_topic"
+							placeholder="e.g. my-private-company-alerts-2026"
+							class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono"
+						/>
+						<p class="text-[11px] text-zinc-400 mt-1">Subscribe to this topic on the free ntfy mobile app (iOS & Android).</p>
+					</div>
+					<div>
+						<label class="block text-xs font-medium text-zinc-300 mb-1">ntfy Server (Optional)</label>
+						<input
+							type="text"
+							name="ntfy_server"
+							placeholder="https://ntfy.sh (default)"
+							value="https://ntfy.sh"
+							class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono"
+						/>
+						<p class="text-[11px] text-zinc-400 mt-1">Use https://ntfy.sh or your self-hosted ntfy instance.</p>
+					</div>
+				</div>
+
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-zinc-800/80">
+					<div class="flex items-center gap-4 text-xs text-zinc-300">
+						<label class="inline-flex items-center gap-2 cursor-pointer">
+							<input type="checkbox" name="events_down" checked class="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-0"/>
+							<span>Alert on Downtime</span>
+						</label>
+						<label class="inline-flex items-center gap-2 cursor-pointer">
+							<input type="checkbox" name="events_recovery" checked class="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-0"/>
+							<span>Alert on Recovery</span>
+						</label>
+					</div>
+					<button
+						type="submit"
+						class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
+					>
+						Register Alert Channel
+					</button>
+				</div>
+			</form>
+		</div>
+
+		<!-- Field Switcher Script -->
+		<script>
+			function updateChannelFields(type) {
+				const webhookField = document.getElementById('field-webhook');
+				const telegramField = document.getElementById('field-telegram');
+				const ntfyField = document.getElementById('field-ntfy');
+
+				webhookField.classList.add('hidden');
+				telegramField.classList.add('hidden');
+				telegramField.classList.remove('grid');
+				ntfyField.classList.add('hidden');
+				ntfyField.classList.remove('grid');
+
+				if (type === 'telegram') {
+					telegramField.classList.remove('hidden');
+					telegramField.classList.add('grid');
+				} else if (type === 'ntfy') {
+					ntfyField.classList.remove('hidden');
+					ntfyField.classList.add('grid');
+				} else {
+					webhookField.classList.remove('hidden');
+				}
+			}
+		</script>
+	}
+}
+
+templ ChannelsList(channels []models.NotificationChannel) {
+	if len(channels) == 0 {
+		<div class="p-8 text-center bg-zinc-900/40 border border-zinc-800/80 rounded-xl space-y-2">
+			<p class="text-sm font-medium text-zinc-300">No alert channels registered yet.</p>
+			<p class="text-xs text-zinc-400">Add a channel below to receive instant push alerts whenever servers degrade or recover.</p>
+		</div>
+	} else {
+		for _, ch := range channels {
+			@ChannelCard(ch)
+		}
+	}
+}
+
+templ ChannelCard(ch models.NotificationChannel) {
+	<div id={ "channel-card-" + ch.ID } class="p-4 bg-zinc-900/70 border border-zinc-800/80 rounded-xl hover:border-zinc-700/80 transition-all space-y-3">
+		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+			<div class="flex items-center gap-3">
+				<!-- Brand Badge -->
+				@ChannelTypeBadge(ch.ChannelType)
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="text-sm font-semibold text-zinc-100">{ ch.Name }</span>
+						if ch.Enabled {
+							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+								<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+								Active
+							</span>
+						} else {
+							<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-800 text-zinc-400 border border-zinc-700">
+								Disabled
+							</span>
+						}
+					</div>
+					<div class="flex items-center gap-3 text-[11px] text-zinc-400 mt-0.5">
+						<span>Events: <span class="font-mono text-zinc-300">{ ch.Events }</span></span>
+						<span>•</span>
+						<span>
+							if ch.LastDispatchedAt != nil {
+								Last alert: <span class="font-mono text-zinc-300">{ ch.LastDispatchedAt.Format("Jan 02, 15:04:05") }</span>
+							} else {
+								Last alert: <span class="text-zinc-400">None yet</span>
+							}
+						</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- Action Buttons -->
+			<div class="flex items-center gap-2">
+				<!-- Send Test Alert Button -->
+				<button
+					type="button"
+					hx-post={ fmt.Sprintf("/admin/notifications/%s/test", ch.ID) }
+					hx-target="#toast-container"
+					hx-swap="beforeend"
+					class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-200 border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer"
+					title="Send verification ping to this channel"
+				>
+					@components.IconSend("w-3.5 h-3.5 text-amber-400")
+					<span>Send Test</span>
+				</button>
+
+				<!-- Toggle Active Button -->
+				<button
+					type="button"
+					hx-post={ fmt.Sprintf("/admin/notifications/%s/toggle", ch.ID) }
+					hx-target="#channels-list"
+					hx-swap="innerHTML"
+					class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer"
+					title="Toggle enabled status"
+				>
+					if ch.Enabled {
+						<span>Pause</span>
+					} else {
+						<span>Enable</span>
+					}
+				</button>
+
+				<!-- Delete Button -->
+				<button
+					type="button"
+					hx-delete={ fmt.Sprintf("/admin/notifications/%s", ch.ID) }
+					hx-target="#channels-list"
+					hx-swap="innerHTML"
+					hx-confirm={ fmt.Sprintf("Remove notification channel '%s'?", ch.Name) }
+					class="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+					title="Delete notification channel"
+				>
+					@components.IconX("w-4 h-4")
+				</button>
+			</div>
+		</div>
+
+		<!-- Masked Config Preview -->
+		<div class="bg-zinc-950/80 border border-zinc-800/80 rounded-lg px-3 py-1.5 text-[11px] font-mono text-zinc-400 flex items-center justify-between">
+			<span class="truncate">{ maskChannelConfig(ch.ChannelType, ch.ConfigJSON) }</span>
+			<span class="text-[10px] text-zinc-400 font-sans ml-2 flex-shrink-0">ID: { ch.ID }</span>
+		</div>
+	</div>
+}
+
+templ ChannelTypeBadge(channelType string) {
+	switch strings.ToLower(channelType) {
+		case "discord":
+			<div class="w-8 h-8 rounded-lg bg-[#5865F2]/20 border border-[#5865F2]/40 text-[#5865F2] flex items-center justify-center font-bold text-xs">
+				DC
+			</div>
+		case "telegram":
+			<div class="w-8 h-8 rounded-lg bg-[#229ED9]/20 border border-[#229ED9]/40 text-[#229ED9] flex items-center justify-center font-bold text-xs">
+				TG
+			</div>
+		case "slack":
+			<div class="w-8 h-8 rounded-lg bg-[#E01E5A]/20 border border-[#E01E5A]/40 text-[#E01E5A] flex items-center justify-center font-bold text-xs">
+				SL
+			</div>
+		case "ntfy":
+			<div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center font-bold text-xs">
+				NF
+			</div>
+		default:
+			<div class="w-8 h-8 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-400 flex items-center justify-center font-bold text-xs">
+				WH
+			</div>
+	}
+}
+
+func maskChannelConfig(channelType, cfgJSON string) string {
+	if strings.Contains(cfgJSON, "http") {
+		return "Destination: Endpoint configured (TLS encrypted)"
+	}
+	if strings.Contains(cfgJSON, "bot_token") {
+		return "Telegram Bot: Token active • Chat ID bound"
+	}
+	if strings.Contains(cfgJSON, "topic") {
+		return "ntfy Topic: Configured for mobile push stream"
+	}
+	return "Active delivery configuration"
+}

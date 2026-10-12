@@ -94,20 +94,28 @@ func Base(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<span>Public Status Page</span></a></nav></div><div class=\"p-4 border-t border-zinc-800/80 bg-zinc-900/30 text-[10px] text-zinc-400 font-mono\"><div>Engine: Single-Binary</div><div class=\"mt-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<span>Public Status Page</span></a> <a href=\"/notifications\" class=\"flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-amber-400 hover:text-amber-300 hover:bg-zinc-800/40\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = components.IconBell("w-4 h-4 text-amber-400").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<span>Alert Channels</span></a></nav></div><div class=\"p-4 border-t border-zinc-800/80 bg-zinc-900/30 text-[10px] text-zinc-400 font-mono\"><div>Engine: Single-Binary</div><div class=\"mt-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(GetGoVersion())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/base.templ`, Line: 66, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/base.templ`, Line: 70, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div></div></aside><!-- Desktop Nav Sidebar (md and larger) --><aside class=\"hidden md:flex w-64 flex-shrink-0 bg-zinc-900/60 border-r border-zinc-800 flex-col justify-between\"><div><!-- App Brand --><div class=\"h-16 flex items-center px-6 border-b border-zinc-800/80 gap-3\"><div class=\"w-8 h-8 rounded-lg bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-sm shadow-sm\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div></div></aside><!-- Desktop Nav Sidebar (md and larger) --><aside class=\"hidden md:flex w-64 flex-shrink-0 bg-zinc-900/60 border-r border-zinc-800 flex-col justify-between\"><div><!-- App Brand --><div class=\"h-16 flex items-center px-6 border-b border-zinc-800/80 gap-3\"><div class=\"w-8 h-8 rounded-lg bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-sm shadow-sm\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -115,20 +123,20 @@ func Base(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><div><div class=\"flex items-center gap-2\"><span class=\"text-sm font-semibold tracking-tight text-zinc-100\">BotKeep</span> <span class=\"px-1.5 py-0.2 text-[10px] font-mono rounded bg-zinc-800 text-zinc-400 border border-zinc-700\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><div><div class=\"flex items-center gap-2\"><span class=\"text-sm font-semibold tracking-tight text-zinc-100\">BotKeep</span> <span class=\"px-1.5 py-0.2 text-[10px] font-mono rounded bg-zinc-800 text-zinc-400 border border-zinc-700\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(AppVersion)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/base.templ`, Line: 81, Col: 127}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/base.templ`, Line: 85, Col: 127}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</span></div><p class=\"text-[11px] text-zinc-400\">DevOps Fleet Manager</p></div></div><!-- Navigation Links --><nav class=\"px-3 py-4 space-y-1\"><a href=\"/\" class=\"flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md bg-zinc-800/90 text-zinc-100 border border-zinc-700/60 shadow-sm transition-colors\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</span></div><p class=\"text-[11px] text-zinc-400\">DevOps Fleet Manager</p></div></div><!-- Navigation Links --><nav class=\"px-3 py-4 space-y-1\"><a href=\"/\" class=\"flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md bg-zinc-800/90 text-zinc-100 border border-zinc-700/60 shadow-sm transition-colors\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -136,7 +144,7 @@ func Base(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<span>Fleet Overview</span></a> <a href=\"#metrics\" class=\"flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 transition-colors\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<span>Fleet Overview</span></a> <a href=\"#metrics\" class=\"flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 transition-colors\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -144,7 +152,7 @@ func Base(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<span>Cluster Metrics</span></a> <a href=\"#logs\" class=\"flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 transition-colors\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<span>Cluster Metrics</span></a> <a href=\"#logs\" class=\"flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 transition-colors\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -152,7 +160,7 @@ func Base(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<span>Live Telemetry</span></a> <a href=\"/status\" target=\"_blank\" class=\"flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-emerald-400 hover:text-emerald-300 hover:bg-zinc-800/40 transition-colors\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<span>Live Telemetry</span></a> <a href=\"/status\" target=\"_blank\" class=\"flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-emerald-400 hover:text-emerald-300 hover:bg-zinc-800/40 transition-colors\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -160,20 +168,28 @@ func Base(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<span>Public Status</span></a></nav></div><!-- Sidebar Footer / Cluster Status --><div class=\"p-4 border-t border-zinc-800/80 bg-zinc-900/30\"><div class=\"flex items-center justify-between mb-2\"><span class=\"text-[11px] font-medium text-zinc-400\">Cluster Status</span> <span class=\"inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium\"><span class=\"h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse\"></span> Healthy</span></div><div class=\"text-[10px] text-zinc-400 font-mono flex items-center justify-between\"><span>Runtime: Single-Binary</span> <span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<span>Public Status</span></a> <a href=\"/notifications\" class=\"flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-amber-400 hover:text-amber-300 hover:bg-zinc-800/40 transition-colors\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = components.IconBell("w-4 h-4 text-amber-400").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<span>Alert Channels</span></a></nav></div><!-- Sidebar Footer / Cluster Status --><div class=\"p-4 border-t border-zinc-800/80 bg-zinc-900/30\"><div class=\"flex items-center justify-between mb-2\"><span class=\"text-[11px] font-medium text-zinc-400\">Cluster Status</span> <span class=\"inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium\"><span class=\"h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse\"></span> Healthy</span></div><div class=\"text-[10px] text-zinc-400 font-mono flex items-center justify-between\"><span>Runtime: Single-Binary</span> <span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(GetGoVersion())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/base.templ`, Line: 132, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/base.templ`, Line: 143, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</span></div></div></aside><!-- Main Application Viewport --><div class=\"flex-1 flex flex-col min-w-0 overflow-hidden\"><!-- Top Nav Header --><header class=\"h-16 flex-shrink-0 bg-zinc-900/40 border-b border-zinc-800 flex items-center justify-between px-4 sm:px-8 backdrop-blur-md\"><div class=\"flex items-center gap-3 sm:gap-4 min-w-0\"><!-- Mobile Menu Trigger --><button type=\"button\" class=\"p-2 -ml-2 text-zinc-400 hover:text-zinc-100 rounded-md hover:bg-zinc-800 md:hidden cursor-pointer\" onclick=\"document.getElementById(&#39;mobile-nav-backdrop&#39;).classList.remove(&#39;hidden&#39;); document.getElementById(&#39;mobile-nav&#39;).classList.remove(&#39;-translate-x-full&#39;);\" title=\"Open navigation menu\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</span></div></div></aside><!-- Main Application Viewport --><div class=\"flex-1 flex flex-col min-w-0 overflow-hidden\"><!-- Top Nav Header --><header class=\"h-16 flex-shrink-0 bg-zinc-900/40 border-b border-zinc-800 flex items-center justify-between px-4 sm:px-8 backdrop-blur-md\"><div class=\"flex items-center gap-3 sm:gap-4 min-w-0\"><!-- Mobile Menu Trigger --><button type=\"button\" class=\"p-2 -ml-2 text-zinc-400 hover:text-zinc-100 rounded-md hover:bg-zinc-800 md:hidden cursor-pointer\" onclick=\"document.getElementById(&#39;mobile-nav-backdrop&#39;).classList.remove(&#39;hidden&#39;); document.getElementById(&#39;mobile-nav&#39;).classList.remove(&#39;-translate-x-full&#39;);\" title=\"Open navigation menu\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -181,33 +197,33 @@ func Base(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</button><div class=\"flex items-center gap-2 text-xs text-zinc-400 font-mono truncate\"><span class=\"hidden sm:inline\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</button><div class=\"flex items-center gap-2 text-xs text-zinc-400 font-mono truncate\"><span class=\"hidden sm:inline\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(GetPlatformInfo())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/base.templ`, Line: 153, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/base.templ`, Line: 164, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</span> <span class=\"hidden sm:inline\">/</span> <span class=\"text-zinc-200 font-medium truncate\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</span> <span class=\"hidden sm:inline\">/</span> <span class=\"text-zinc-200 font-medium truncate\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(GetHostInfo())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/base.templ`, Line: 155, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/base.templ`, Line: 166, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span></div><span class=\"hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20\"><span class=\"h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse\"></span> Active Engine</span></div><div class=\"flex items-center gap-2 sm:gap-3 flex-shrink-0\"><!-- Public Status Page Link --><a href=\"/status\" target=\"_blank\" class=\"inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors shadow-sm\" title=\"Open public status page\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</span></div><span class=\"hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20\"><span class=\"h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse\"></span> Active Engine</span></div><div class=\"flex items-center gap-2 sm:gap-3 flex-shrink-0\"><!-- Public Status Page Link --><a href=\"/status\" target=\"_blank\" class=\"inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors shadow-sm\" title=\"Open public status page\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -215,7 +231,7 @@ func Base(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<span class=\"hidden sm:inline text-[11px]\">Public Status</span></a><!-- Prometheus OpenMetrics Endpoint --><a href=\"/metrics/prometheus\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors shadow-sm\" title=\"View Prometheus / OpenMetrics scrape endpoint\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<span class=\"hidden sm:inline text-[11px]\">Public Status</span></a><!-- Prometheus OpenMetrics Endpoint --><a href=\"/metrics/prometheus\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors shadow-sm\" title=\"View Prometheus / OpenMetrics scrape endpoint\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -223,7 +239,7 @@ func Base(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<span class=\"hidden sm:inline font-mono text-[11px]\">Prometheus</span></a><!-- Export Fleet Configuration JSON --><a href=\"/api/fleet/export\" download class=\"inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors shadow-sm\" title=\"Export Fleet Configuration (JSON Backup)\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<span class=\"hidden sm:inline font-mono text-[11px]\">Prometheus</span></a><!-- Export Fleet Configuration JSON --><a href=\"/api/fleet/export\" download class=\"inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors shadow-sm\" title=\"Export Fleet Configuration (JSON Backup)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -231,7 +247,7 @@ func Base(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<span class=\"hidden sm:inline text-[11px]\">Export JSON</span></a><!-- Localized / Global HTMX Activity Indicator --><div id=\"global-indicator\" class=\"htmx-indicator items-center gap-1.5 text-xs text-zinc-400\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<span class=\"hidden sm:inline text-[11px]\">Export JSON</span></a><!-- Localized / Global HTMX Activity Indicator --><div id=\"global-indicator\" class=\"htmx-indicator items-center gap-1.5 text-xs text-zinc-400\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -239,7 +255,7 @@ func Base(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<span class=\"hidden sm:inline font-mono text-[11px]\">Syncing...</span></div></div></header><!-- Scrollable Main Content --><main class=\"flex-1 overflow-y-auto px-4 sm:px-8 py-5 sm:py-6 space-y-6 sm:space-y-8 bg-zinc-950\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<span class=\"hidden sm:inline font-mono text-[11px]\">Syncing...</span></div></div></header><!-- Scrollable Main Content --><main class=\"flex-1 overflow-y-auto px-4 sm:px-8 py-5 sm:py-6 space-y-6 sm:space-y-8 bg-zinc-950\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -247,7 +263,7 @@ func Base(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</main></div><!-- HTMX Error Listener & Toast Dispatcher Script --><script>\n\t\t\t\t(function() {\n\t\t\t\t\tfunction showToast(message, type) {\n\t\t\t\t\t\tvar container = document.getElementById('toast-container');\n\t\t\t\t\t\tif (!container) return;\n\n\t\t\t\t\t\tvar toast = document.createElement('div');\n\t\t\t\t\t\tvar bgBorder = type === 'error' \n\t\t\t\t\t\t\t? 'bg-rose-950/90 border-rose-800/80 text-rose-200' \n\t\t\t\t\t\t\t: 'bg-zinc-900/90 border-zinc-700/80 text-zinc-200';\n\t\t\t\t\t\t\n\t\t\t\t\t\ttoast.className = 'flex items-start gap-3 p-3.5 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 transform translate-y-2 opacity-0 ' + bgBorder;\n\t\t\t\t\t\ttoast.innerHTML = \n\t\t\t\t\t\t\t'<div class=\"flex-shrink-0 mt-0.5\">' +\n\t\t\t\t\t\t\t\t'<svg class=\"w-4 h-4 ' + (type === 'error' ? 'text-rose-400' : 'text-zinc-400') + '\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><line x1=\"12\" y1=\"8\" x2=\"12\" y2=\"12\"></line><line x1=\"12\" y1=\"16\" x2=\"12.01\" y2=\"16\"></line></svg>' +\n\t\t\t\t\t\t\t'</div>' +\n\t\t\t\t\t\t\t'<div class=\"flex-1 text-xs font-medium leading-relaxed\">' + message + '</div>' +\n\t\t\t\t\t\t\t'<button type=\"button\" class=\"text-zinc-400 hover:text-zinc-100 p-0.5\" onclick=\"this.parentElement.remove()\">' +\n\t\t\t\t\t\t\t\t'<svg class=\"w-3.5 h-3.5\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"></line><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"></line></svg>' +\n\t\t\t\t\t\t\t'</button>';\n\n\t\t\t\t\t\tcontainer.appendChild(toast);\n\t\t\t\t\t\trequestAnimationFrame(function() {\n\t\t\t\t\t\t\ttoast.classList.remove('translate-y-2', 'opacity-0');\n\t\t\t\t\t\t});\n\n\t\t\t\t\t\tsetTimeout(function() {\n\t\t\t\t\t\t\ttoast.classList.add('opacity-0', 'translate-y-2');\n\t\t\t\t\t\t\tsetTimeout(function() { toast.remove(); }, 300);\n\t\t\t\t\t\t}, 4500);\n\t\t\t\t\t}\n\n\t\t\t\t\tdocument.body.addEventListener('htmx:responseError', function(evt) {\n\t\t\t\t\t\tvar status = evt.detail.xhr.status;\n\t\t\t\t\t\tvar statusText = evt.detail.xhr.statusText || 'Server Error';\n\t\t\t\t\t\tvar respText = evt.detail.xhr.responseText;\n\t\t\t\t\t\tvar msg = 'Request failed (' + status + ' ' + statusText + ')';\n\t\t\t\t\t\tif (respText && respText.length < 100 && !respText.includes('<')) {\n\t\t\t\t\t\t\tmsg += ': ' + respText;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tshowToast(msg, 'error');\n\t\t\t\t\t});\n\n\t\t\t\t\tdocument.body.addEventListener('htmx:sendError', function(evt) {\n\t\t\t\t\t\tshowToast('Network timeout or connection refused. Check server connectivity.', 'error');\n\t\t\t\t\t});\n\n\t\t\t\t\tdocument.body.addEventListener('htmx:timeout', function(evt) {\n\t\t\t\t\t\tshowToast('DevOps server action timed out. Please retry.', 'error');\n\t\t\t\t\t});\n\n\t\t\t\t\twindow.showDevOpsToast = showToast;\n\t\t\t\t})();\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</main></div><!-- HTMX Error Listener & Toast Dispatcher Script --><script>\n\t\t\t\t(function() {\n\t\t\t\t\tfunction showToast(message, type) {\n\t\t\t\t\t\tvar container = document.getElementById('toast-container');\n\t\t\t\t\t\tif (!container) return;\n\n\t\t\t\t\t\tvar toast = document.createElement('div');\n\t\t\t\t\t\tvar bgBorder = type === 'error' \n\t\t\t\t\t\t\t? 'bg-rose-950/90 border-rose-800/80 text-rose-200' \n\t\t\t\t\t\t\t: 'bg-zinc-900/90 border-zinc-700/80 text-zinc-200';\n\t\t\t\t\t\t\n\t\t\t\t\t\ttoast.className = 'flex items-start gap-3 p-3.5 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 transform translate-y-2 opacity-0 ' + bgBorder;\n\t\t\t\t\t\ttoast.innerHTML = \n\t\t\t\t\t\t\t'<div class=\"flex-shrink-0 mt-0.5\">' +\n\t\t\t\t\t\t\t\t'<svg class=\"w-4 h-4 ' + (type === 'error' ? 'text-rose-400' : 'text-zinc-400') + '\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><line x1=\"12\" y1=\"8\" x2=\"12\" y2=\"12\"></line><line x1=\"12\" y1=\"16\" x2=\"12.01\" y2=\"16\"></line></svg>' +\n\t\t\t\t\t\t\t'</div>' +\n\t\t\t\t\t\t\t'<div class=\"flex-1 text-xs font-medium leading-relaxed\">' + message + '</div>' +\n\t\t\t\t\t\t\t'<button type=\"button\" class=\"text-zinc-400 hover:text-zinc-100 p-0.5\" onclick=\"this.parentElement.remove()\">' +\n\t\t\t\t\t\t\t\t'<svg class=\"w-3.5 h-3.5\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"></line><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"></line></svg>' +\n\t\t\t\t\t\t\t'</button>';\n\n\t\t\t\t\t\tcontainer.appendChild(toast);\n\t\t\t\t\t\trequestAnimationFrame(function() {\n\t\t\t\t\t\t\ttoast.classList.remove('translate-y-2', 'opacity-0');\n\t\t\t\t\t\t});\n\n\t\t\t\t\t\tsetTimeout(function() {\n\t\t\t\t\t\t\ttoast.classList.add('opacity-0', 'translate-y-2');\n\t\t\t\t\t\t\tsetTimeout(function() { toast.remove(); }, 300);\n\t\t\t\t\t\t}, 4500);\n\t\t\t\t\t}\n\n\t\t\t\t\tdocument.body.addEventListener('htmx:responseError', function(evt) {\n\t\t\t\t\t\tvar status = evt.detail.xhr.status;\n\t\t\t\t\t\tvar statusText = evt.detail.xhr.statusText || 'Server Error';\n\t\t\t\t\t\tvar respText = evt.detail.xhr.responseText;\n\t\t\t\t\t\tvar msg = 'Request failed (' + status + ' ' + statusText + ')';\n\t\t\t\t\t\tif (respText && respText.length < 100 && !respText.includes('<')) {\n\t\t\t\t\t\t\tmsg += ': ' + respText;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tshowToast(msg, 'error');\n\t\t\t\t\t});\n\n\t\t\t\t\tdocument.body.addEventListener('htmx:sendError', function(evt) {\n\t\t\t\t\t\tshowToast('Network timeout or connection refused. Check server connectivity.', 'error');\n\t\t\t\t\t});\n\n\t\t\t\t\tdocument.body.addEventListener('htmx:timeout', function(evt) {\n\t\t\t\t\t\tshowToast('DevOps server action timed out. Please retry.', 'error');\n\t\t\t\t\t});\n\n\t\t\t\t\twindow.showDevOpsToast = showToast;\n\t\t\t\t})();\n\t\t\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

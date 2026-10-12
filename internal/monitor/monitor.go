@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,6 +22,7 @@ type Engine struct {
 	client     *http.Client
 	interval   time.Duration
 	webhookURL string
+	dispatcher *Dispatcher
 	mu         sync.Mutex
 }
 
@@ -47,7 +49,13 @@ func NewEngine(db *models.DB, interval time.Duration) *Engine {
 		client:     client,
 		interval:   interval,
 		webhookURL: os.Getenv("BOTKEEP_WEBHOOK_URL"),
+		dispatcher: NewDispatcher(5 * time.Second),
 	}
+}
+
+// GetDispatcher returns the notification dispatcher.
+func (e *Engine) GetDispatcher() *Dispatcher {
+	return e.dispatcher
 }
 
 // Start launches the background prober loop until context cancellation.
@@ -194,7 +202,7 @@ func (e *Engine) ProbeNow(ctx context.Context, serverID string) (*models.Server,
 	return e.db.GetServerByID(serverID)
 }
 
-// dispatchAlert logs incident events and dispatches external webhooks if configured.
+// dispatchAlert logs incident events and dispatches notifications to configured channels.
 func (e *Engine) dispatchAlert(s models.Server, recovered bool, reason string) {
 	level := "ERROR"
 	msg := fmt.Sprintf("[%s] INCIDENT: Health check probe failed (%s)", s.Name, reason)
@@ -205,39 +213,82 @@ func (e *Engine) dispatchAlert(s models.Server, recovered bool, reason string) {
 
 	_ = e.db.AddLog(s.ID, level, msg)
 
-	if e.webhookURL == "" {
-		return
+	ev := AlertEvent{
+		ServerID:    s.ID,
+		ServerName:  s.Name,
+		Driver:      s.Driver,
+		EndpointURL: s.EndpointURL,
+		Region:      s.Region,
+		Status:      s.Status,
+		Recovered:   recovered,
+		Reason:      reason,
+		LatencyMS:   s.LatencyMS,
+		Timestamp:   time.Now(),
 	}
 
-	// Dispatch asynchronous webhook
-	go func(targetURL string) {
-		payload := map[string]any{
-			"event":     "node_alert",
-			"server_id": s.ID,
-			"name":      s.Name,
-			"driver":    s.Driver,
-			"endpoint":  s.EndpointURL,
-			"status":    s.Status,
-			"recovered": recovered,
-			"reason":    reason,
-			"timestamp": time.Now().Format(time.RFC3339),
-		}
-		body, err := json.Marshal(payload)
-		if err != nil {
-			return
-		}
+	// 1. Dispatch across all enabled notification channels
+	channels, err := e.db.GetActiveNotificationChannels()
+	if err == nil {
+		for _, ch := range channels {
+			events := strings.ToLower(ch.Events)
+			shouldSend := false
+			if events == "all" || strings.Contains(events, "all") {
+				shouldSend = true
+			} else if !recovered && (strings.Contains(events, "down") || strings.Contains(events, "incident")) {
+				shouldSend = true
+			} else if recovered && strings.Contains(events, "recovery") {
+				shouldSend = true
+			}
 
-		req, err := http.NewRequest("POST", targetURL, bytes.NewBuffer(body))
-		if err != nil {
-			return
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", "BotKeep-Alert-Webhook/2.0")
+			if !shouldSend {
+				continue
+			}
 
-		client := &http.Client{Timeout: 5 * time.Second}
-		resp, err := client.Do(req)
-		if err == nil {
-			_ = resp.Body.Close()
+			go func(channel models.NotificationChannel) {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
+				if err := e.dispatcher.Dispatch(ctx, channel, ev); err != nil {
+					_ = e.db.AddLog(s.ID, "WARN", fmt.Sprintf("[%s] Notification failed to %s (%s): %v", s.Name, channel.Name, channel.ChannelType, err))
+				} else {
+					_ = e.db.UpdateNotificationChannelLastDispatched(channel.ID)
+					_ = e.db.AddLog(s.ID, "INFO", fmt.Sprintf("[%s] Notification delivered to %s (%s)", s.Name, channel.Name, channel.ChannelType))
+				}
+			}(ch)
 		}
-	}(e.webhookURL)
+	}
+
+	// 2. Legacy fallback webhook if BOTKEEP_WEBHOOK_URL is set
+	if e.webhookURL != "" {
+		go func(targetURL string) {
+			payload := map[string]any{
+				"event":     "node_alert",
+				"server_id": s.ID,
+				"name":      s.Name,
+				"driver":    s.Driver,
+				"endpoint":  s.EndpointURL,
+				"status":    s.Status,
+				"recovered": recovered,
+				"reason":    reason,
+				"timestamp": time.Now().Format(time.RFC3339),
+			}
+			body, err := json.Marshal(payload)
+			if err != nil {
+				return
+			}
+
+			req, err := http.NewRequest("POST", targetURL, bytes.NewBuffer(body))
+			if err != nil {
+				return
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("User-Agent", "BotKeep-Alert-Webhook/2.0")
+
+			client := &http.Client{Timeout: 5 * time.Second}
+			resp, err := client.Do(req)
+			if err == nil {
+				_ = resp.Body.Close()
+			}
+		}(e.webhookURL)
+	}
 }

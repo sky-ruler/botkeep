@@ -53,6 +53,14 @@ func setupTestServer(t *testing.T) (*chi.Mux, func()) {
 	r.Get("/status/components", h.StatusComponents)
 	r.Get("/api/status", h.StatusJSON)
 	r.Post("/admin/incidents/new", h.CreateIncident)
+	r.Get("/notifications", h.NotificationsPage)
+	r.Get("/notifications/list", h.NotificationChannelsListPartial)
+	r.Post("/admin/notifications/new", h.CreateNotificationChannel)
+	r.Post("/admin/notifications/{id}/toggle", h.ToggleNotificationChannel)
+	r.Delete("/admin/notifications/{id}", h.DeleteNotificationChannel)
+	r.Post("/admin/notifications/{id}/test", h.TestNotificationChannel)
+	r.Post("/admin/notifications/test-all", h.TestAllNotifications)
+	r.Get("/api/notifications", h.NotificationsJSON)
 
 	cleanup := func() {
 		_ = db.Close()
@@ -272,5 +280,98 @@ func TestCreateIncidentHandler(t *testing.T) {
 
 	if w.Code != http.StatusSeeOther {
 		t.Errorf("Expected status 303 redirect, got %d", w.Code)
+	}
+}
+
+func TestNotificationsPageHandler(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	req := httptest.NewRequest("GET", "/notifications", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "Alert Channels") {
+		t.Errorf("Expected body to contain 'Alert Channels'")
+	}
+}
+
+func TestCreateAndToggleNotificationChannelHandler(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// 1. Create Discord channel
+	form := url.Values{}
+	form.Set("name", "Production Discord Alerts")
+	form.Set("channel_type", "discord")
+	form.Set("webhook_url", "https://discord.com/api/webhooks/test/12345")
+	form.Set("events_down", "on")
+	form.Set("events_recovery", "on")
+
+	req := httptest.NewRequest("POST", "/admin/notifications/new", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200 on create, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "Production Discord Alerts") {
+		t.Errorf("Expected channels list to contain 'Production Discord Alerts'")
+	}
+
+	// 2. Query JSON API
+	reqAPI := httptest.NewRequest("GET", "/api/notifications", nil)
+	wAPI := httptest.NewRecorder()
+	r.ServeHTTP(wAPI, reqAPI)
+
+	if wAPI.Code != http.StatusOK {
+		t.Errorf("Expected status 200 on /api/notifications, got %d", wAPI.Code)
+	}
+	apiBody := wAPI.Body.String()
+	if !strings.Contains(apiBody, "Production Discord Alerts") {
+		t.Errorf("Expected API JSON to include created channel")
+	}
+
+	// 3. Toggle channel
+	reqToggle := httptest.NewRequest("POST", "/admin/notifications/nc-discord-01/toggle", nil)
+	wToggle := httptest.NewRecorder()
+	r.ServeHTTP(wToggle, reqToggle)
+
+	if wToggle.Code != http.StatusOK {
+		t.Errorf("Expected status 200 on toggle, got %d", wToggle.Code)
+	}
+
+	// 4. Delete channel
+	reqDel := httptest.NewRequest("DELETE", "/admin/notifications/nc-discord-01", nil)
+	wDel := httptest.NewRecorder()
+	r.ServeHTTP(wDel, reqDel)
+
+	if wDel.Code != http.StatusOK {
+		t.Errorf("Expected status 200 on delete, got %d", wDel.Code)
+	}
+}
+
+func TestTestNotificationChannelHandler(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// Testing with a demo channel
+	req := httptest.NewRequest("POST", "/admin/notifications/nc-ntfy-01/test", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Handler returns an HTMX toast
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200 with toast, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "role=\"alert\"") {
+		t.Errorf("Expected toast component returned")
 	}
 }

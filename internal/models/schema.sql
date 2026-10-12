@@ -49,8 +49,20 @@ CREATE TABLE IF NOT EXISTS logs (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS notification_channels (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    channel_type TEXT NOT NULL CHECK(channel_type IN ('discord', 'slack', 'telegram', 'ntfy', 'webhook')),
+    config_json TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    events TEXT NOT NULL DEFAULT 'down,recovery',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_dispatched_at DATETIME
+);
+
 CREATE INDEX IF NOT EXISTS idx_servers_status ON servers(status);
 CREATE INDEX IF NOT EXISTS idx_servers_driver ON servers(driver);
 CREATE INDEX IF NOT EXISTS idx_probe_history_server ON probe_history(server_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_incidents_created ON incidents(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notification_channels_enabled ON notification_channels(enabled);

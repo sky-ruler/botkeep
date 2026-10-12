@@ -134,6 +134,17 @@ func main() {
 	r.Get("/api/status", h.StatusJSON)
 	r.Post("/admin/incidents/new", h.CreateIncident)
 
+	// Multi-Channel Alert & Notification Management
+	r.Get("/notifications", h.NotificationsPage)
+	r.Get("/notifications/list", h.NotificationChannelsListPartial)
+	r.Post("/admin/notifications/new", h.CreateNotificationChannel)
+	r.Post("/admin/notifications/{id}/toggle", h.ToggleNotificationChannel)
+	r.Delete("/admin/notifications/{id}", h.DeleteNotificationChannel)
+	r.Post("/admin/notifications/{id}/delete", h.DeleteNotificationChannel)
+	r.Post("/admin/notifications/{id}/test", h.TestNotificationChannel)
+	r.Post("/admin/notifications/test-all", h.TestAllNotifications)
+	r.Get("/api/notifications", h.NotificationsJSON)
+
 	// Health check endpoint
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

@@ -122,6 +122,7 @@ flowchart TD
   - **Simulated Node**: Organic jitter simulation for sandbox testing.
 - **🔒 TLS / SSL Certificate Expiry Auditing**: Intercepts `resp.TLS.PeerCertificates` and tracks days remaining until expiration (`ssl_expiry_days`) directly in the UI and Prometheus metrics.
 - **📢 Zero-Cost Public Status Page (`/status`)**: Customer-facing live status page with real-time operational banners, 90-day incident/maintenance timelines, public component isolation, and CORS-enabled `/api/status` JSON feed. Eliminates $50–$200/mo third-party SaaS hosting costs.
+- **🔔 1-Click Multi-Channel Push Notifications (`/notifications`)**: Zero-glue delivery presets for **Discord** (rich embeds), **Telegram** (Bot API HTML formatting), **Slack** (attachment blocks), **ntfy.sh** (free instant mobile phone push without account), and custom **Webhooks**. Includes 1-click test pings and broadcast testing.
 - **📊 Native Prometheus / OpenMetrics Exposition**: Native `/metrics/prometheus` endpoint exposing target status, latency, SLA, SSL days, and Go runtime memory/goroutines.
 - **💾 Fleet Configuration JSON Backup**: 1-click `/api/fleet/export` endpoint to download complete fleet definitions as an indented JSON backup file.
 - **🚨 Incident Webhook Alerting**: Configurable `BOTKEEP_WEBHOOK_URL` to dispatch async JSON notifications on outages (`INCIDENT_DOWN`) and recoveries (`INCIDENT_RESOLVED`).

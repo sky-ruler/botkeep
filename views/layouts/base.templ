@@ -59,6 +59,10 @@ templ Base(title string) {
 							@components.IconGlobe("w-4 h-4 text-emerald-400")
 							<span>Public Status Page</span>
 						</a>
+						<a href="/notifications" class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-amber-400 hover:text-amber-300 hover:bg-zinc-800/40">
+							@components.IconBell("w-4 h-4 text-amber-400")
+							<span>Alert Channels</span>
+						</a>
 					</nav>
 				</div>
 				<div class="p-4 border-t border-zinc-800/80 bg-zinc-900/30 text-[10px] text-zinc-400 font-mono">
@@ -114,6 +118,13 @@ templ Base(title string) {
 						>
 							@components.IconGlobe("w-4 h-4 text-emerald-400")
 							<span>Public Status</span>
+						</a>
+						<a
+							href="/notifications"
+							class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md text-amber-400 hover:text-amber-300 hover:bg-zinc-800/40 transition-colors"
+						>
+							@components.IconBell("w-4 h-4 text-amber-400")
+							<span>Alert Channels</span>
 						</a>
 					</nav>
 				</div>

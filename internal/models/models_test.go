@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -227,5 +228,72 @@ func TestPublicServersAndIncidents(t *testing.T) {
 	}
 	if len(updatedPub) != len(pubServers)-1 {
 		t.Errorf("Expected %d public servers after toggle, got %d", len(pubServers)-1, len(updatedPub))
+	}
+}
+
+func TestNotificationChannels(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// 1. Verify bootstrapped demo channels
+	channels, err := db.GetNotificationChannels()
+	if err != nil {
+		t.Fatalf("GetNotificationChannels failed: %v", err)
+	}
+	if len(channels) == 0 {
+		t.Errorf("Expected bootstrapped notification channels, got 0")
+	}
+
+	// 2. Create new custom channel
+	cfgJSON, _ := json.Marshal(DiscordConfig{WebhookURL: "https://discord.com/api/webhooks/test/123"})
+	newCh := NotificationChannel{
+		ID:          "nc-custom-discord",
+		Name:        "Custom Discord Channel",
+		ChannelType: "discord",
+		ConfigJSON:  string(cfgJSON),
+		Enabled:     true,
+		Events:      "down,recovery",
+	}
+	err = db.CreateNotificationChannel(newCh)
+	if err != nil {
+		t.Fatalf("CreateNotificationChannel failed: %v", err)
+	}
+
+	// 3. Fetch by ID
+	fetched, err := db.GetNotificationChannelByID("nc-custom-discord")
+	if err != nil {
+		t.Fatalf("GetNotificationChannelByID failed: %v", err)
+	}
+	if fetched.Name != "Custom Discord Channel" {
+		t.Errorf("Expected name 'Custom Discord Channel', got '%s'", fetched.Name)
+	}
+
+	// 4. Toggle enabled
+	newState, err := db.ToggleNotificationChannel("nc-custom-discord")
+	if err != nil {
+		t.Fatalf("ToggleNotificationChannel failed: %v", err)
+	}
+	if newState != false {
+		t.Errorf("Expected newState false, got %v", newState)
+	}
+
+	// 5. Update last dispatched
+	err = db.UpdateNotificationChannelLastDispatched("nc-custom-discord")
+	if err != nil {
+		t.Fatalf("UpdateNotificationChannelLastDispatched failed: %v", err)
+	}
+	updated, err := db.GetNotificationChannelByID("nc-custom-discord")
+	if err != nil || updated.LastDispatchedAt == nil {
+		t.Errorf("Expected non-nil LastDispatchedAt after update, got %v", updated.LastDispatchedAt)
+	}
+
+	// 6. Delete channel
+	err = db.DeleteNotificationChannel("nc-custom-discord")
+	if err != nil {
+		t.Fatalf("DeleteNotificationChannel failed: %v", err)
+	}
+	_, err = db.GetNotificationChannelByID("nc-custom-discord")
+	if err == nil {
+		t.Errorf("Expected error fetching deleted channel, got nil")
 	}
 }

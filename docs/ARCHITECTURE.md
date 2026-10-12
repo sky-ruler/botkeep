@@ -132,6 +132,13 @@ BotKeep includes an integrated customer-facing status page requiring zero extern
 - **Live HTMX Partial Polling**: Public visitors' browsers poll `/status/components` every 10 seconds to stream real-time latency and SLA updates without page reloads.
 - **CORS-Enabled Programmatic API**: `/api/status` returns instant JSON health indicators for shields.io badges or client app integrations.
 
+### Zero-Glue Multi-Channel Push Notification Engine (`/notifications`)
+BotKeep includes built-in push notification dispatchers directly in the single binary, bypassing complex Alertmanager setups:
+- **Native Protocol Presets**: Supports Discord (rich embed cards), Telegram (Bot API with HTML formatting), Slack (attachment blocks), ntfy.sh (free instant mobile phone push without account), and custom Webhooks.
+- **Concurrent Non-Blocking Delivery**: The `Dispatcher` dispatches alerts in isolated goroutines with 5-second context timeouts, ensuring slow webhook endpoints never block health probers or UI rendering.
+- **Environment Auto-Bootstrapping**: Reads standard environment variables (`BOTKEEP_DISCORD_WEBHOOK`, `BOTKEEP_TELEGRAM_BOT_TOKEN`, `BOTKEEP_NTFY_TOPIC`, etc.) and automatically provisions them into SQLite on startup.
+- **Interactive Verification**: Operators can test any channel or broadcast test alerts with 1 click directly from the HTMX dashboard.
+
 ---
 
 ## 6. Server-Driven UI with HTMX & `a-h/templ`

@@ -12,6 +12,7 @@ import (
 
 	"botkeep/internal/models"
 	"botkeep/internal/monitor"
+	"botkeep/views/components"
 	"botkeep/views/pages"
 )
 
@@ -560,6 +561,249 @@ func (h *Handler) CreateIncident(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/status", http.StatusSeeOther)
+}
+
+// NotificationsPage renders the notification channel management page.
+func (h *Handler) NotificationsPage(w http.ResponseWriter, r *http.Request) {
+	channels, err := h.db.GetNotificationChannels()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load notification channels: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = pages.NotificationsPage(channels).Render(r.Context(), w)
+}
+
+// NotificationChannelsListPartial returns the rendered channel list for HTMX swaps.
+func (h *Handler) NotificationChannelsListPartial(w http.ResponseWriter, r *http.Request) {
+	channels, err := h.db.GetNotificationChannels()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = pages.ChannelsList(channels).Render(r.Context(), w)
+}
+
+// CreateNotificationChannel handles registration of a new alert channel.
+func (h *Handler) CreateNotificationChannel(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	name := strings.TrimSpace(r.FormValue("name"))
+	channelType := strings.TrimSpace(r.FormValue("channel_type"))
+	if name == "" || channelType == "" {
+		http.Error(w, "Channel name and type are required", http.StatusBadRequest)
+		return
+	}
+
+	var cfgJSON []byte
+	switch strings.ToLower(channelType) {
+	case "discord":
+		webhookURL := strings.TrimSpace(r.FormValue("webhook_url"))
+		cfgJSON, _ = json.Marshal(models.DiscordConfig{WebhookURL: webhookURL})
+	case "slack":
+		webhookURL := strings.TrimSpace(r.FormValue("webhook_url"))
+		cfgJSON, _ = json.Marshal(models.SlackConfig{WebhookURL: webhookURL})
+	case "telegram":
+		token := strings.TrimSpace(r.FormValue("telegram_token"))
+		chatID := strings.TrimSpace(r.FormValue("telegram_chat_id"))
+		cfgJSON, _ = json.Marshal(models.TelegramConfig{BotToken: token, ChatID: chatID})
+	case "ntfy":
+		topic := strings.TrimSpace(r.FormValue("ntfy_topic"))
+		server := strings.TrimSpace(r.FormValue("ntfy_server"))
+		if server == "" {
+			server = "https://ntfy.sh"
+		}
+		cfgJSON, _ = json.Marshal(models.NtfyConfig{Server: server, Topic: topic})
+	default:
+		channelType = "webhook"
+		webhookURL := strings.TrimSpace(r.FormValue("webhook_url"))
+		cfgJSON, _ = json.Marshal(models.WebhookConfig{URL: webhookURL})
+	}
+
+	var events []string
+	if r.FormValue("events_down") != "" {
+		events = append(events, "down")
+	}
+	if r.FormValue("events_recovery") != "" {
+		events = append(events, "recovery")
+	}
+	eventStr := strings.Join(events, ",")
+	if eventStr == "" {
+		eventStr = "down,recovery"
+	}
+
+	nc := models.NotificationChannel{
+		Name:        name,
+		ChannelType: channelType,
+		ConfigJSON:  string(cfgJSON),
+		Enabled:     true,
+		Events:      eventStr,
+	}
+
+	if err := h.db.CreateNotificationChannel(nc); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create channel: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	channels, err := h.db.GetNotificationChannels()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = pages.ChannelsList(channels).Render(r.Context(), w)
+}
+
+// ToggleNotificationChannel toggles the enabled state of an alert channel.
+func (h *Handler) ToggleNotificationChannel(w http.ResponseWriter, r *http.Request) {
+	id := sanitizeID(chi.URLParam(r, "id"))
+	if id == "" {
+		http.Error(w, "Channel ID required", http.StatusBadRequest)
+		return
+	}
+
+	_, err := h.db.ToggleNotificationChannel(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	channels, err := h.db.GetNotificationChannels()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = pages.ChannelsList(channels).Render(r.Context(), w)
+}
+
+// DeleteNotificationChannel removes a notification channel.
+func (h *Handler) DeleteNotificationChannel(w http.ResponseWriter, r *http.Request) {
+	id := sanitizeID(chi.URLParam(r, "id"))
+	if id == "" {
+		http.Error(w, "Channel ID required", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.db.DeleteNotificationChannel(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	channels, err := h.db.GetNotificationChannels()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = pages.ChannelsList(channels).Render(r.Context(), w)
+}
+
+// TestNotificationChannel sends an immediate verification ping to a specific channel and returns an HTMX toast.
+func (h *Handler) TestNotificationChannel(w http.ResponseWriter, r *http.Request) {
+	id := sanitizeID(chi.URLParam(r, "id"))
+	if id == "" {
+		http.Error(w, "Channel ID required", http.StatusBadRequest)
+		return
+	}
+
+	ch, err := h.db.GetNotificationChannelByID(id)
+	if err != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = components.Toast("Channel not found", "error").Render(r.Context(), w)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.monitor.GetDispatcher().SendTestAlert(ctx, *ch); err != nil {
+		_ = h.db.AddLog(id, "WARN", fmt.Sprintf("[Test] Failed delivery to %s (%s): %v", ch.Name, ch.ChannelType, err))
+		_ = components.Toast(fmt.Sprintf("Delivery failed to %s: %v", ch.Name, err), "error").Render(r.Context(), w)
+		return
+	}
+
+	_ = h.db.UpdateNotificationChannelLastDispatched(ch.ID)
+	_ = h.db.AddLog(id, "INFO", fmt.Sprintf("[Test] Delivered test alert to %s (%s)", ch.Name, ch.ChannelType))
+	_ = components.Toast(fmt.Sprintf("Test alert delivered successfully to %s (%s)", ch.Name, ch.ChannelType), "success").Render(r.Context(), w)
+}
+
+// TestAllNotifications broadcasts test alerts to all active channels.
+func (h *Handler) TestAllNotifications(w http.ResponseWriter, r *http.Request) {
+	channels, err := h.db.GetActiveNotificationChannels()
+	if err != nil || len(channels) == 0 {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = components.Toast("No active notification channels found to broadcast to", "error").Render(r.Context(), w)
+		return
+	}
+
+	successCount := 0
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	for _, ch := range channels {
+		if err := h.monitor.GetDispatcher().SendTestAlert(ctx, ch); err == nil {
+			successCount++
+			_ = h.db.UpdateNotificationChannelLastDispatched(ch.ID)
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	msg := fmt.Sprintf("Broadcast test completed: %d of %d active channels confirmed delivery", successCount, len(channels))
+	variant := "success"
+	if successCount == 0 {
+		variant = "error"
+	}
+	_ = components.Toast(msg, variant).Render(r.Context(), w)
+}
+
+// NotificationsJSON returns the list of channels in JSON format with masked sensitive configs.
+func (h *Handler) NotificationsJSON(w http.ResponseWriter, r *http.Request) {
+	channels, err := h.db.GetNotificationChannels()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	type SafeChannel struct {
+		ID               string     `json:"id"`
+		Name             string     `json:"name"`
+		ChannelType      string     `json:"channel_type"`
+		Enabled          bool       `json:"enabled"`
+		Events           string     `json:"events"`
+		CreatedAt        time.Time  `json:"created_at"`
+		LastDispatchedAt *time.Time `json:"last_dispatched_at,omitempty"`
+	}
+
+	var safe []SafeChannel
+	for _, c := range channels {
+		safe = append(safe, SafeChannel{
+			ID:               c.ID,
+			Name:             c.Name,
+			ChannelType:      c.ChannelType,
+			Enabled:          c.Enabled,
+			Events:           c.Events,
+			CreatedAt:        c.CreatedAt,
+			LastDispatchedAt: c.LastDispatchedAt,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"channels": safe,
+		"count":    len(safe),
+	})
 }
 
 func isHTMX(r *http.Request) bool {
