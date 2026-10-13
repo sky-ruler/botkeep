@@ -144,22 +144,28 @@ flowchart TD
 
 ## 🚀 Quickstart
 
-### Option 1: Run the Precompiled Binary
-Download the prebuilt single binary for your operating system from GitHub Releases:
+### Option 1: 1-Line Zero-Dependency Installer (Linux / macOS / WSL)
+Installs the precompiled native executable directly into `/usr/local/bin` or `~/.local/bin`:
 ```bash
-# Run locally
-./botkeep
+curl -fsSL https://raw.githubusercontent.com/sky-ruler/botkeep/main/install.sh | bash
+```
+
+### Option 2: Run the Precompiled Binary
+Download the prebuilt single binary for your operating system from [GitHub Releases](https://github.com/sky-ruler/botkeep/releases):
+```bash
+# Run locally with demo fleet
+./botkeep -seed
 
 # Open http://localhost:8080 in your browser
 ```
 
-### Option 2: Run via Docker Compose
+### Option 3: Run via Docker Compose
 ```bash
 docker compose up -d
 # Dashboard available at http://localhost:8080
 ```
 
-### Option 3: Build from Source
+### Option 4: Build from Source
 ```bash
 # 1. Clone repository
 git clone https://github.com/sky-ruler/botkeep.git
@@ -179,7 +185,7 @@ make run
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Configuration & Security
 
 BotKeep is configured via command-line flags and environment variables:
 
@@ -188,7 +194,28 @@ BotKeep is configured via command-line flags and environment variables:
 | `-port` | `PORT` | `8080` | TCP port for HTTP server |
 | `-db` | `BOTKEEP_DB_PATH` | `botkeep.db` | Path to embedded SQLite database |
 | `-interval` | `BOTKEEP_PROBE_INTERVAL` | `15s` | Interval between background fleet probe cycles |
+| `-fleet` | `BOTKEEP_FLEET_FILE` | `""` | Path to declarative GitOps `fleet.yaml` manifest |
+| `-auth-user` | `BOTKEEP_AUTH_USER` | `""` | Administrative HTTP Basic Auth username |
+| `-auth-pass` | `BOTKEEP_AUTH_PASS` | `""` | Administrative HTTP Basic Auth password |
+| `-api-key` | `BOTKEEP_API_KEY` | `""` | Bearer Token / `X-API-Key` for administrative API endpoints |
 | — | `BOTKEEP_WEBHOOK_URL` | `""` | Optional HTTP URL for downtime incident webhooks |
+
+### 🔒 Public vs. Authenticated Endpoints
+When `-auth-user`/`-auth-pass` or `-api-key` is configured, BotKeep automatically protects administrative control plane routes while keeping public observability feeds open:
+
+- **Public Endpoints (Zero Auth Required)**:
+  - `/status` — Public Status Page & real-time SLA uptime dashboard
+  - `/status/components` — Partial HTMX component telemetry feed
+  - `/api/status` — Machine-readable incident & service health JSON feed
+  - `/healthz` — Container orchestrator liveness probe (`200 OK`)
+  - `/metrics/prometheus` — OpenMetrics / Prometheus scrape endpoint
+  - `/static/*` — Embedded CSS & script assets
+- **Protected Endpoints (Basic Auth or API Key Required)**:
+  - `/` & `/servers/*` — Dashboard, node actions, synthetic probing rules, runbooks
+  - `/admin/*` — Incident creation, notification channel management
+  - `/notifications/*` — Alert destination configuration & dispatch test firing
+  - `/api/fleet/*` — Fleet export & GitOps schema synchronization
+  - `/api/satellites` & `/api/satellite/*` — Multi-region consensus mesh telemetry
 
 ---
 
@@ -210,3 +237,4 @@ scrape_configs:
 ## 📜 License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+

@@ -61,6 +61,7 @@ func setupTestServer(t *testing.T) (*chi.Mux, func()) {
 	r.Post("/admin/notifications/{id}/test", h.TestNotificationChannel)
 	r.Post("/admin/notifications/test-all", h.TestAllNotifications)
 	r.Get("/api/notifications", h.NotificationsJSON)
+	r.Post("/servers/{id}/synthetic", h.UpdateServerSynthetic)
 
 	cleanup := func() {
 		_ = db.Close()
@@ -375,3 +376,46 @@ func TestTestNotificationChannelHandler(t *testing.T) {
 		t.Errorf("Expected toast component returned")
 	}
 }
+
+func TestUpdateServerSyntheticHandler(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// 1. Create a server first
+	formCreate := url.Values{
+		"name":         {"synthetic-api"},
+		"region":       {"us-east-1"},
+		"driver":       {"http"},
+		"endpoint_url": {"https://api.example.com/healthz"},
+	}
+	reqCreate := httptest.NewRequest("POST", "/servers/new", strings.NewReader(formCreate.Encode()))
+	reqCreate.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqCreate.Header.Set("HX-Request", "true")
+	wCreate := httptest.NewRecorder()
+	r.ServeHTTP(wCreate, reqCreate)
+
+	if wCreate.Code != http.StatusOK {
+		t.Fatalf("Failed to create server: status %d", wCreate.Code)
+	}
+
+	// 2. Update synthetic rules for a demo node
+	form := url.Values{
+		"http_method":     {"POST"},
+		"expected_status": {"201"},
+		"body_assertion":  {"created"},
+		"custom_headers":  {"X-App-Env: prod\nAuthorization: Bearer secret"},
+	}
+	req := httptest.NewRequest("POST", "/servers/srv-us-101/synthetic", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200 on synthetic update, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "detail-drawer") {
+		t.Errorf("Expected detail-drawer returned in response")
+	}
+}
+

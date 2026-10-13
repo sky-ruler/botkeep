@@ -6,10 +6,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -114,13 +116,22 @@ func (e *Engine) ProbeServer(ctx context.Context, s models.Server) error {
 			return nil
 		}
 
-		req, err := http.NewRequestWithContext(ctx, "GET", s.EndpointURL, nil)
+		method := strings.ToUpper(strings.TrimSpace(s.HTTPMethod))
+		if method == "" {
+			method = "GET"
+		}
+
+		req, err := http.NewRequestWithContext(ctx, method, s.EndpointURL, nil)
 		if err != nil {
 			_ = e.db.RecordProbe(s.ID, 0, 0, false, fmt.Sprintf("Invalid URL: %v", err))
 			e.dispatchAlert(s, false, err.Error())
 			return err
 		}
 		req.Header.Set("User-Agent", "BotKeep-Fleet-Prober/2.0")
+
+		if s.CustomHeaders != "" {
+			parseAndApplyHeaders(req, s.CustomHeaders)
+		}
 
 		start := time.Now()
 		resp, err := e.client.Do(req)
@@ -135,6 +146,13 @@ func (e *Engine) ProbeServer(ctx context.Context, s models.Server) error {
 			return err
 		}
 		defer resp.Body.Close()
+
+		// Read up to 64KB for body assertion verification
+		var bodyText string
+		if s.BodyAssertion != "" {
+			bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+			bodyText = string(bodyBytes)
+		}
 
 		// Deep SSL & DNS inspection for HTTPS endpoints
 		if resp.TLS != nil && len(resp.TLS.PeerCertificates) > 0 {
@@ -156,10 +174,19 @@ func (e *Engine) ProbeServer(ctx context.Context, s models.Server) error {
 			}
 		}(s)
 
-		success := resp.StatusCode >= 200 && resp.StatusCode < 400
+		statusMatch := CheckStatusMatch(resp.StatusCode, s.ExpectedStatus)
+		bodyMatch := true
+		if s.BodyAssertion != "" {
+			bodyMatch = strings.Contains(bodyText, s.BodyAssertion)
+		}
+
+		success := statusMatch && bodyMatch
 		errMsg := ""
-		if !success {
-			errMsg = fmt.Sprintf("HTTP status %d", resp.StatusCode)
+		if !statusMatch {
+			errMsg = fmt.Sprintf("HTTP status %d (expected %s)", resp.StatusCode, s.ExpectedStatus)
+			e.dispatchAlert(s, false, errMsg)
+		} else if !bodyMatch {
+			errMsg = fmt.Sprintf("Body keyword %q missing in HTTP response", s.BodyAssertion)
 			e.dispatchAlert(s, false, errMsg)
 		} else if s.Status == "stopped" {
 			e.dispatchAlert(s, true, fmt.Sprintf("HTTP %d OK", resp.StatusCode))
@@ -387,4 +414,65 @@ func (e *Engine) dispatchAlert(s models.Server, recovered bool, reason string) {
 			}
 		}(e.webhookURL)
 	}
+}
+
+func parseAndApplyHeaders(req *http.Request, raw string) {
+	lines := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == '\n' || r == '\r' || r == ';'
+	})
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) == 2 {
+			k := strings.TrimSpace(parts[0])
+			v := strings.TrimSpace(parts[1])
+			if k != "" {
+				req.Header.Set(k, v)
+			}
+		}
+	}
+}
+
+// CheckStatusMatch validates if the received HTTP status code satisfies the expectation expression.
+// Supports: "200", "200,201", "2xx", "200-299", or comma-delimited combinations.
+func CheckStatusMatch(code int, expected string) bool {
+	expected = strings.TrimSpace(expected)
+	if expected == "" {
+		return code >= 200 && code < 400
+	}
+
+	parts := strings.Split(expected, ",")
+	for _, part := range parts {
+		p := strings.TrimSpace(strings.ToLower(part))
+		if p == "" {
+			continue
+		}
+		if strings.HasSuffix(p, "xx") && len(p) == 3 {
+			digit := int(p[0] - '0')
+			if digit >= 1 && digit <= 5 {
+				if code >= digit*100 && code < (digit+1)*100 {
+					return true
+				}
+			}
+			continue
+		}
+		if strings.Contains(p, "-") {
+			rangeParts := strings.SplitN(p, "-", 2)
+			minC, err1 := strconv.Atoi(strings.TrimSpace(rangeParts[0]))
+			maxC, err2 := strconv.Atoi(strings.TrimSpace(rangeParts[1]))
+			if err1 == nil && err2 == nil && code >= minC && code <= maxC {
+				return true
+			}
+			continue
+		}
+		if expectedCode, err := strconv.Atoi(p); err == nil {
+			if code == expectedCode {
+				return true
+			}
+		}
+	}
+	return false
 }

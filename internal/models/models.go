@@ -36,6 +36,10 @@ type Server struct {
 	DNSLatencyMS     float64                  `json:"dns_latency_ms"`
 	DNSRecords       string                   `json:"dns_records"`
 	GRPCService      string                   `json:"grpc_service"`
+	HTTPMethod       string                   `json:"http_method"`
+	ExpectedStatus   string                   `json:"expected_status"`
+	BodyAssertion    string                   `json:"body_assertion"`
+	CustomHeaders    string                   `json:"custom_headers"`
 	IsPublic         bool                     `json:"is_public"`
 	LatencyMS        float64                  `json:"latency_ms"`
 	UptimePct        float64                  `json:"uptime_pct"`
@@ -229,6 +233,10 @@ func NewDB(dbPath string) (*DB, error) {
 		"ALTER TABLE servers ADD COLUMN dns_latency_ms REAL NOT NULL DEFAULT 0.0;",
 		"ALTER TABLE servers ADD COLUMN dns_records TEXT NOT NULL DEFAULT '';",
 		"ALTER TABLE servers ADD COLUMN grpc_service TEXT NOT NULL DEFAULT '';",
+		"ALTER TABLE servers ADD COLUMN http_method TEXT NOT NULL DEFAULT 'GET';",
+		"ALTER TABLE servers ADD COLUMN expected_status TEXT NOT NULL DEFAULT '200';",
+		"ALTER TABLE servers ADD COLUMN body_assertion TEXT NOT NULL DEFAULT '';",
+		"ALTER TABLE servers ADD COLUMN custom_headers TEXT NOT NULL DEFAULT '';",
 	}
 	for _, m := range migrations {
 		_, _ = conn.Exec(m)
@@ -300,6 +308,7 @@ func (db *DB) GetServerByID(id string) (*Server, error) {
 	err := db.conn.QueryRow(`
 		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
 		       ssl_issuer, ssl_sans, ssl_valid_to, dns_latency_ms, dns_records, grpc_service,
+		       http_method, expected_status, body_assertion, custom_headers,
 		       is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
 		       last_checked, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at
 		FROM servers
@@ -307,6 +316,7 @@ func (db *DB) GetServerByID(id string) (*Server, error) {
 	`, id).Scan(
 		&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays,
 		&s.SSLIssuer, &s.SSLSANs, &sslValidTo, &s.DNSLatencyMS, &s.DNSRecords, &s.GRPCService,
+		&s.HTTPMethod, &s.ExpectedStatus, &s.BodyAssertion, &s.CustomHeaders,
 		&isPublicInt, &s.LatencyMS, &s.UptimePct, &s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime,
 		&lastChecked, &s.RunbookURL, &runbookEnabledInt, &s.AutoHealAttempts, &lastHealed, &s.CreatedAt, &s.UpdatedAt,
 	)
@@ -376,6 +386,7 @@ func (db *DB) SearchServers(query, status, region string) ([]Server, error) {
 	sqlQuery := `
 		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
 		       ssl_issuer, ssl_sans, ssl_valid_to, dns_latency_ms, dns_records, grpc_service,
+		       http_method, expected_status, body_assertion, custom_headers,
 		       is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
 		       last_checked, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at
 		FROM servers
@@ -398,6 +409,7 @@ func (db *DB) SearchServers(query, status, region string) ([]Server, error) {
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays,
 			&s.SSLIssuer, &s.SSLSANs, &sslValidTo, &s.DNSLatencyMS, &s.DNSRecords, &s.GRPCService,
+			&s.HTTPMethod, &s.ExpectedStatus, &s.BodyAssertion, &s.CustomHeaders,
 			&isPublicInt, &s.LatencyMS, &s.UptimePct, &s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime,
 			&lastChecked, &s.RunbookURL, &runbookEnabledInt, &s.AutoHealAttempts, &lastHealed, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
@@ -692,6 +704,10 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 		EndpointURL:   endpointURL,
 		Protocol:      protocol,
 		SSLExpiryDays: sslExpiryDays,
+		HTTPMethod:    "GET",
+		ExpectedStatus: "200",
+		BodyAssertion:  "",
+		CustomHeaders:  "",
 		IsPublic:      true,
 		LatencyMS:     latency,
 		UptimePct:     100.0,
@@ -706,11 +722,13 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 	_, err := db.conn.Exec(`
 		INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
 		                     ssl_issuer, ssl_sans, ssl_valid_to, dns_latency_ms, dns_records, grpc_service,
+		                     http_method, expected_status, body_assertion, custom_headers,
 		                     is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
 		                     runbook_url, runbook_enabled, auto_heal_attempts, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', '', NULL, 0.0, '', '', ?, ?, ?, ?, ?, ?, ?, '', 0, 0, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', '', NULL, 0.0, '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 0, 0, ?, ?)
 	`, server.ID, server.Name, server.IPAddress, server.Region, server.Status, server.Driver, server.EndpointURL,
-		server.Protocol, server.SSLExpiryDays, 1, server.LatencyMS, server.UptimePct, server.CPUUsage, server.MemoryUsage,
+		server.Protocol, server.SSLExpiryDays, server.HTTPMethod, server.ExpectedStatus, server.BodyAssertion, server.CustomHeaders,
+		1, server.LatencyMS, server.UptimePct, server.CPUUsage, server.MemoryUsage,
 		server.StorageUsage, server.Uptime, server.CreatedAt, server.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -1093,9 +1111,10 @@ func (db *DB) SeedDemoFleet() error {
 		_, err := db.conn.Exec(`
 			INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
 			                     ssl_issuer, ssl_sans, ssl_valid_to, dns_latency_ms, dns_records, grpc_service,
+			                     http_method, expected_status, body_assertion, custom_headers,
 			                     is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
 			                     runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'GET', '200', '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, s.ID, s.Name, s.IPAddress, s.Region, s.Status, s.Driver, s.EndpointURL, s.Protocol, s.SSLExpiryDays,
 			s.SSLIssuer, s.SSLSANs, sslValidTo, s.DNSLatencyMS, s.DNSRecords, s.GRPCService,
 			1, s.LatencyMS, s.UptimePct, s.CPUUsage, s.MemoryUsage, s.StorageUsage, s.Uptime,
@@ -1922,4 +1941,23 @@ func (db *DB) RecordAutoHealSuccess(serverID string) error {
 	return err
 }
 
+func (db *DB) UpdateServerSynthetic(id string, method, expectedStatus, bodyAssertion, headers string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
 
+	method = strings.ToUpper(strings.TrimSpace(method))
+	if method == "" {
+		method = "GET"
+	}
+	expectedStatus = strings.TrimSpace(expectedStatus)
+	if expectedStatus == "" {
+		expectedStatus = "200"
+	}
+
+	_, err := db.conn.Exec(`
+		UPDATE servers
+		SET http_method = ?, expected_status = ?, body_assertion = ?, custom_headers = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, method, expectedStatus, bodyAssertion, headers, id)
+	return err
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -44,6 +46,9 @@ func main() {
 	flagFleet := flag.String("fleet", "", "Path to declarative GitOps fleet.yaml configuration (optional)")
 	flagVersion := flag.Bool("version", false, "Print BotKeep version information and exit")
 	flagSeed := flag.Bool("seed", false, "Force re-seed demo server fleet on startup")
+	flagAuthUser := flag.String("auth-user", "", "Optional HTTP Basic Auth username (or $BOTKEEP_AUTH_USER)")
+	flagAuthPass := flag.String("auth-pass", "", "Optional HTTP Basic Auth password (or $BOTKEEP_AUTH_PASS)")
+	flagAPIKey := flag.String("api-key", "", "Optional API Key for Bearer / X-API-Key auth (or $BOTKEEP_API_KEY)")
 	flag.Parse()
 
 	if *flagVersion {
@@ -66,6 +71,19 @@ func main() {
 	}
 	if dbPath == "" {
 		dbPath = "botkeep.db"
+	}
+
+	authUser := *flagAuthUser
+	if authUser == "" {
+		authUser = os.Getenv("BOTKEEP_AUTH_USER")
+	}
+	authPass := *flagAuthPass
+	if authPass == "" {
+		authPass = os.Getenv("BOTKEEP_AUTH_PASS")
+	}
+	apiKey := *flagAPIKey
+	if apiKey == "" {
+		apiKey = os.Getenv("BOTKEEP_API_KEY")
 	}
 
 	log.Printf("[Init] Starting BotKeep Single-Binary Engine v%s on port :%s", version, port)
@@ -98,6 +116,13 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Compress(5))
+
+	// Production Admin Authentication & API Key Protection Middleware
+	authRequired := (authUser != "" && authPass != "") || apiKey != ""
+	if authRequired {
+		log.Println("[Security] Admin authentication & API Key verification active")
+		r.Use(NewAuthMiddleware(authUser, authPass, apiKey))
+	}
 
 	// Serve embedded static files (Tailwind CSS, HTMX script) directly from binary
 	staticSubFS, err := fs.Sub(botkeep.StaticFS, "static")
@@ -182,6 +207,7 @@ func main() {
 	// Self-Healing Runbooks & GitOps Endpoints
 	r.Post("/servers/{id}/runbook", h.UpdateServerRunbook)
 	r.Post("/servers/{id}/runbook/trigger", h.TriggerServerRunbook)
+	r.Post("/servers/{id}/synthetic", h.UpdateServerSynthetic)
 	r.Get("/api/fleet/gitops/export", h.ExportFleetYAML)
 
 	// Health check endpoint
@@ -256,3 +282,55 @@ func runExportFleet(args []string) {
 	}
 	fmt.Printf("Successfully exported fleet configuration to %s\n", *outFile)
 }
+
+// NewAuthMiddleware creates a security middleware protecting administrative and control plane routes
+// while leaving public endpoints (/static/*, /status, /api/status, /healthz, /metrics/prometheus) unauthenticated.
+func NewAuthMiddleware(authUser, authPass, apiKey string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			p := r.URL.Path
+			// Whitelist public assets and public status feeds
+			if strings.HasPrefix(p, "/static/") || p == "/healthz" || strings.HasPrefix(p, "/status") || p == "/api/status" || p == "/metrics/prometheus" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// 1. Verify Bearer token or X-API-Key header
+			if apiKey != "" {
+				reqKey := r.Header.Get("X-API-Key")
+				if reqKey == "" {
+					authHeader := r.Header.Get("Authorization")
+					if strings.HasPrefix(authHeader, "Bearer ") {
+						reqKey = strings.TrimPrefix(authHeader, "Bearer ")
+					}
+				}
+				if reqKey != "" && subtle.ConstantTimeCompare([]byte(reqKey), []byte(apiKey)) == 1 {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			// 2. Verify HTTP Basic Auth credentials
+			if authUser != "" && authPass != "" {
+				u, pass, ok := r.BasicAuth()
+				if ok && subtle.ConstantTimeCompare([]byte(u), []byte(authUser)) == 1 &&
+					subtle.ConstantTimeCompare([]byte(pass), []byte(authPass)) == 1 {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			// Unauthenticated: prompt for Basic Auth if browser request
+			if strings.Contains(r.Header.Get("Accept"), "text/html") || r.Header.Get("HX-Request") != "" {
+				w.Header().Set("WWW-Authenticate", `Basic realm="BotKeep Admin"`)
+				http.Error(w, "Unauthorized: Authentication required", http.StatusUnauthorized)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"Unauthorized: valid credentials or API key required"}`))
+		})
+	}
+}
+

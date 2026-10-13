@@ -250,3 +250,81 @@ func TestDispatcherChannels(t *testing.T) {
 			discordReceived, slackReceived, ntfyReceived, webhookReceived)
 	}
 }
+
+func TestCheckStatusMatch(t *testing.T) {
+	tests := []struct {
+		code     int
+		expected string
+		match    bool
+	}{
+		{200, "200", true},
+		{200, "", true},
+		{201, "200", false},
+		{201, "200,201", true},
+		{204, "2xx", true},
+		{301, "2xx", false},
+		{302, "3xx", true},
+		{404, "200-299", false},
+		{202, "200-299", true},
+		{503, "500,502,503,504", true},
+		{400, "5xx", false},
+	}
+
+	for _, tt := range tests {
+		got := CheckStatusMatch(tt.code, tt.expected)
+		if got != tt.match {
+			t.Errorf("CheckStatusMatch(%d, %q) = %v, want %v", tt.code, tt.expected, got, tt.match)
+		}
+	}
+}
+
+func TestProbeServerSynthetic(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Mock server verifying custom header and body response
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Custom-Secret") != "ultra-pass" {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"all_systems_green","version":"2.0"}`))
+	}))
+	defer ts.Close()
+
+	srv, err := db.CreateServer("synthetic-target", "us-east-1", "http", ts.URL)
+	if err != nil {
+		t.Fatalf("CreateServer failed: %v", err)
+	}
+
+	// 1. Configure synthetic rules matching the secret and keyword
+	err = db.UpdateServerSynthetic(srv.ID, "GET", "200", "all_systems_green", "X-Custom-Secret: ultra-pass")
+	if err != nil {
+		t.Fatalf("UpdateServerSynthetic failed: %v", err)
+	}
+
+	updatedSrv, _ := db.GetServerByID(srv.ID)
+	engine := NewEngine(db, time.Minute)
+	err = engine.ProbeServer(context.Background(), *updatedSrv)
+	if err != nil {
+		t.Fatalf("ProbeServer failed: %v", err)
+	}
+
+	checked, _ := db.GetServerByID(srv.ID)
+	if checked.Status != "active" {
+		t.Errorf("Expected server active with valid synthetic assertions, got %s", checked.Status)
+	}
+
+	// 2. Configure body assertion that is missing -> should fail probe
+	_ = db.UpdateServerSynthetic(srv.ID, "GET", "200", "non_existent_keyword", "X-Custom-Secret: ultra-pass")
+	updatedSrv2, _ := db.GetServerByID(srv.ID)
+	_ = engine.ProbeServer(context.Background(), *updatedSrv2)
+
+	checked2, _ := db.GetServerByID(srv.ID)
+	if checked2.Status != "stopped" {
+		t.Errorf("Expected server stopped when keyword assertion fails, got %s", checked2.Status)
+	}
+}
+

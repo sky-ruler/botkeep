@@ -976,6 +976,37 @@ func (h *Handler) UpdateServerRunbook(w http.ResponseWriter, r *http.Request) {
 	_ = pages.ServerDetailDrawer(*server, logs, remediations).Render(r.Context(), w)
 }
 
+// UpdateServerSynthetic updates the synthetic probing configuration for an HTTP/HTTPS endpoint.
+func (h *Handler) UpdateServerSynthetic(w http.ResponseWriter, r *http.Request) {
+	id := sanitizeID(chi.URLParam(r, "id"))
+	if id == "" {
+		http.Error(w, "Invalid server ID provided", http.StatusBadRequest)
+		return
+	}
+
+	_ = r.ParseForm()
+	method := r.FormValue("http_method")
+	expectedStatus := r.FormValue("expected_status")
+	bodyAssertion := r.FormValue("body_assertion")
+	headers := r.FormValue("custom_headers")
+
+	if err := h.db.UpdateServerSynthetic(id, method, expectedStatus, bodyAssertion, headers); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update synthetic configuration: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	server, err := h.db.GetServerByID(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	logs, _ := h.db.GetServerLogs(id, 15)
+	remediations, _ := h.db.GetServerRemediations(id, 5)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = pages.ServerDetailDrawer(*server, logs, remediations).Render(r.Context(), w)
+}
+
 // TriggerServerRunbook executes a manual smoke test of a server's auto-healing runbook.
 func (h *Handler) TriggerServerRunbook(w http.ResponseWriter, r *http.Request) {
 	id := sanitizeID(chi.URLParam(r, "id"))
