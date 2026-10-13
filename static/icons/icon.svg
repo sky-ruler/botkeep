@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18181b"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </linearGradient>
+    <linearGradient id="primary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#a1a1aa"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="504" height="504" x="4" y="4" rx="108" fill="none" stroke="#27272a" stroke-width="8"/>
+
+  <!-- Pulse Status Ring -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#10b981" stroke-width="4" stroke-dasharray="16 12" opacity="0.4"/>
+
+  <!-- Center Layered Isometric Nodes (BotKeep Core) -->
+  <g transform="translate(106, 116) scale(12.5)" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Top Layer -->
+    <polygon points="12 2 2 7 12 12 22 7 12 2" fill="url(#primary)" stroke="#10b981" stroke-width="1.2"/>
+    <!-- Middle Layer -->
+    <polyline points="2 12 12 17 22 12" fill="none" stroke="url(#shield)" stroke-width="1.5"/>
+    <!-- Bottom Layer -->
+    <polyline points="2 17 12 22 22 17" fill="none" stroke="url(#shield)" stroke-width="1.5"/>
+  </g>
+
+  <!-- Bottom Indicator Pill -->
+  <rect x="206" y="420" width="100" height="20" rx="10" fill="#059669" opacity="0.8"/>
+  <circle cx="226" cy="430" r="4" fill="#34d399"/>
+</svg>

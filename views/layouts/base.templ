@@ -10,7 +10,13 @@ templ Base(title string) {
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-			<title>{ title } — BotKeep DevOps</title>
+			<!-- PWA Manifest & App Icons -->
+			<link rel="manifest" href="/manifest.json"/>
+			<link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg"/>
+			<link rel="apple-touch-icon" href="/static/icons/icon-192.png"/>
+			<meta name="theme-color" content="#09090b"/>
+			<meta name="mobile-web-app-capable" content="yes"/>
+			<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 			<!-- Google Fonts: Inter -->
 			<link rel="preconnect" href="https://fonts.googleapis.com"/>
 			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -172,6 +178,19 @@ templ Base(title string) {
 					</div>
 
 					<div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+						<!-- Web Push / PWA Alert Notification Toggle -->
+						<button
+							type="button"
+							id="pwa-push-toggle"
+							onclick="toggleWebPush()"
+							class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 transition-colors shadow-sm cursor-pointer"
+							title="Enable Direct Browser Push Alerts"
+						>
+							@components.IconBell("w-3.5 h-3.5 text-amber-400")
+							<span class="hidden sm:inline text-[11px]">Push Alerts</span>
+							<span class="push-indicator-dot w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
+						</button>
+
 						<!-- Public Status Page Link -->
 						<a
 							href="/status"
@@ -275,6 +294,8 @@ templ Base(title string) {
 					window.showDevOpsToast = showToast;
 				})();
 			</script>
+			<!-- Web Push & PWA Service Worker Client -->
+			<script src="/static/js/webpush.js"></script>
 		</body>
 	</html>
 }

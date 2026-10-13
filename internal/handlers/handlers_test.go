@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -66,6 +67,11 @@ func setupTestServer(t *testing.T) (*chi.Mux, func()) {
 	r.Post("/servers/{id}/scenario/test", h.TestServerScenario)
 	r.Get("/status/incidents/{id}/postmortem", h.IncidentPostMortem)
 	r.Get("/status/incidents/{id}/postmortem/download", h.DownloadIncidentPostMortem)
+	r.Post("/api/push/subscribe", h.SubscribeWebPush)
+	r.Post("/api/push/unsubscribe", h.UnsubscribeWebPush)
+	r.Post("/api/push/test", h.TestWebPush)
+	r.Get("/api/push/status", h.GetWebPushStatus)
+	r.Delete("/api/push/subscriptions/{id}", h.DeleteWebPushByID)
 
 	cleanup := func() {
 		_ = db.Close()
@@ -503,6 +509,72 @@ func TestIncidentPostMortemHandler(t *testing.T) {
 	}
 	if wDown.Header().Get("Content-Type") != "text/markdown; charset=utf-8" {
 		t.Errorf("Expected markdown Content-Type, got %s", wDown.Header().Get("Content-Type"))
+	}
+}
+
+func TestWebPushHandlers(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// 1. Subscribe Web Push
+	subJSON := `{"endpoint":"https://fcm.googleapis.com/fcm/send/test-device-token","p256dh":"test-key","auth":"test-auth","user_agent":"TestBrowser/1.0"}`
+	reqSub := httptest.NewRequest("POST", "/api/push/subscribe", strings.NewReader(subJSON))
+	reqSub.Header.Set("Content-Type", "application/json")
+	wSub := httptest.NewRecorder()
+	r.ServeHTTP(wSub, reqSub)
+
+	if wSub.Code != http.StatusCreated {
+		t.Fatalf("Expected status 201 on subscribe, got %d: %s", wSub.Code, wSub.Body.String())
+	}
+
+	var subResp map[string]interface{}
+	if err := json.Unmarshal(wSub.Body.Bytes(), &subResp); err != nil {
+		t.Fatalf("Failed to parse subscribe response: %v", err)
+	}
+	subID, ok := subResp["id"].(string)
+	if !ok || subID == "" {
+		t.Fatalf("Expected valid subscription ID in response")
+	}
+
+	// 2. Check Push Status
+	reqStatus := httptest.NewRequest("GET", "/api/push/status", nil)
+	wStatus := httptest.NewRecorder()
+	r.ServeHTTP(wStatus, reqStatus)
+
+	if wStatus.Code != http.StatusOK {
+		t.Errorf("Expected status 200 on push status, got %d", wStatus.Code)
+	}
+	var statusResp map[string]interface{}
+	_ = json.Unmarshal(wStatus.Body.Bytes(), &statusResp)
+	if int(statusResp["count"].(float64)) != 1 {
+		t.Errorf("Expected 1 active subscription, got %v", statusResp["count"])
+	}
+
+	// 3. Test Push Broadcast
+	reqTest := httptest.NewRequest("POST", "/api/push/test", nil)
+	wTest := httptest.NewRecorder()
+	r.ServeHTTP(wTest, reqTest)
+
+	if wTest.Code != http.StatusOK {
+		t.Errorf("Expected status 200 on push test, got %d", wTest.Code)
+	}
+
+	// 4. Delete Subscription by ID
+	reqDel := httptest.NewRequest("DELETE", "/api/push/subscriptions/"+subID, nil)
+	wDel := httptest.NewRecorder()
+	r.ServeHTTP(wDel, reqDel)
+
+	if wDel.Code != http.StatusOK {
+		t.Errorf("Expected status 200 on delete subscription, got %d", wDel.Code)
+	}
+
+	// 5. Verify count is now 0
+	wStatusAfter := httptest.NewRecorder()
+	r.ServeHTTP(wStatusAfter, reqStatus)
+	var statusAfter map[string]interface{}
+	_ = json.Unmarshal(wStatusAfter.Body.Bytes(), &statusAfter)
+	if int(statusAfter["count"].(float64)) != 0 {
+		t.Errorf("Expected 0 active subscriptions after deletion, got %v", statusAfter["count"])
 	}
 }
 

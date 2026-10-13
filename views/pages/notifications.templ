@@ -46,6 +46,60 @@ templ NotificationsPage(channels []models.NotificationChannel) {
 			</div>
 		</div>
 
+		<!-- Direct Browser Web Push & PWA Direct Alerts Card -->
+		<div class="p-5 rounded-xl border border-zinc-800 bg-zinc-900/60 shadow-lg space-y-4">
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+				<div class="flex items-start gap-3">
+					<div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0 mt-0.5">
+						@components.IconBell("w-5 h-5")
+					</div>
+					<div>
+						<div class="flex items-center gap-2">
+							<h2 class="text-sm font-semibold text-zinc-100">Native Browser Web Push & PWA Direct Alerts</h2>
+							<span id="push-permission-badge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-zinc-800 text-zinc-400 border border-zinc-700">
+								<span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span> Checking...
+							</span>
+						</div>
+						<p class="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed">
+							Receive instant OS desktop & mobile notifications directly from your browser. Zero third-party apps, zero relay bots, and zero subscription costs. Works across macOS, Windows, Linux, Android, and iOS 16.4+.
+						</p>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-2 flex-shrink-0">
+					<!-- Send Verification Ping -->
+					<button
+						type="button"
+						onclick="testWebPush()"
+						class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-200 border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer"
+						title="Trigger immediate desktop OS test notification"
+					>
+						@components.IconSend("w-3.5 h-3.5 text-amber-400")
+						<span>Test OS Notification</span>
+					</button>
+
+					<!-- Enable/Disable Push Toggle -->
+					<button
+						type="button"
+						id="push-action-btn"
+						onclick="toggleWebPush()"
+						class="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-colors cursor-pointer"
+					>
+						Enable Browser Push
+					</button>
+				</div>
+			</div>
+
+			<!-- PWA Install & Standalone Banner -->
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-zinc-950/70 border border-zinc-800/80 text-[11px] text-zinc-400">
+				<div class="flex items-center gap-2 font-mono">
+					<span class="text-emerald-400">⚡ PWA Ready:</span>
+					<span>Standalone progressive web app with offline telemetry caching & full-screen ops console.</span>
+				</div>
+				<span class="text-zinc-500 hidden sm:inline">Chrome • Safari • Edge • Firefox</span>
+			</div>
+		</div>
+
 		<!-- Protocol Presets Overview Cards -->
 		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
 			<!-- Discord Card -->

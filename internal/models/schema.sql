@@ -123,3 +123,15 @@ CREATE INDEX IF NOT EXISTS idx_notification_channels_enabled ON notification_cha
 CREATE INDEX IF NOT EXISTS idx_satellites_heartbeat ON satellites(last_heartbeat DESC);
 CREATE INDEX IF NOT EXISTS idx_satellite_probes_server ON satellite_probes(server_id, region, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_remediations_server ON remediations(server_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS web_push_subscriptions (
+    id TEXT PRIMARY KEY,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    user_agent TEXT NOT NULL DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_notified_at DATETIME
+);
+
+CREATE INDEX IF NOT EXISTS idx_web_push_endpoint ON web_push_subscriptions(endpoint);

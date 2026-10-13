@@ -73,20 +73,36 @@ func NotificationsPage(channels []models.NotificationChannel) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<span>Add Channel</span></button></div></div><!-- Protocol Presets Overview Cards --> <div class=\"grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2\"><!-- Discord Card --><div class=\"p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all\"><div class=\"flex items-center gap-2 mb-1.5\"><div class=\"w-2 h-2 rounded-full bg-[#5865F2]\"></div><span class=\"text-xs font-semibold text-zinc-200\">Discord</span></div><p class=\"text-[11px] text-zinc-400\">Rich embed cards with outage & recovery color pills.</p></div><!-- Telegram Card --><div class=\"p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all\"><div class=\"flex items-center gap-2 mb-1.5\"><div class=\"w-2 h-2 rounded-full bg-[#229ED9]\"></div><span class=\"text-xs font-semibold text-zinc-200\">Telegram</span></div><p class=\"text-[11px] text-zinc-400\">Direct Bot API messaging with formatted HTML alerts.</p></div><!-- Slack Card --><div class=\"p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all\"><div class=\"flex items-center gap-2 mb-1.5\"><div class=\"w-2 h-2 rounded-full bg-[#E01E5A]\"></div><span class=\"text-xs font-semibold text-zinc-200\">Slack</span></div><p class=\"text-[11px] text-zinc-400\">Incident attachments with structured telemetry blocks.</p></div><!-- ntfy.sh Card --><div class=\"p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all\"><div class=\"flex items-center gap-2 mb-1.5\"><div class=\"w-2 h-2 rounded-full bg-emerald-400\"></div><span class=\"text-xs font-semibold text-zinc-200\">ntfy.sh</span></div><p class=\"text-[11px] text-zinc-400\">100% free instant phone push alerts without an account.</p></div><!-- Custom Webhook Card --><div class=\"p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all col-span-2 sm:col-span-1\"><div class=\"flex items-center gap-2 mb-1.5\"><div class=\"w-2 h-2 rounded-full bg-purple-400\"></div><span class=\"text-xs font-semibold text-zinc-200\">Webhook</span></div><p class=\"text-[11px] text-zinc-400\">JSON HTTP POST with secret HMAC/Bearer headers.</p></div></div><!-- Configured Channels Section --> <div class=\"space-y-3 pt-2\"><div class=\"flex items-center justify-between\"><h2 class=\"text-xs font-semibold uppercase tracking-wider text-zinc-400\">Configured Notification Channels</h2><span class=\"text-xs text-zinc-400 font-mono\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<span>Add Channel</span></button></div></div><!-- Direct Browser Web Push & PWA Direct Alerts Card --> <div class=\"p-5 rounded-xl border border-zinc-800 bg-zinc-900/60 shadow-lg space-y-4\"><div class=\"flex flex-col sm:flex-row sm:items-center justify-between gap-3\"><div class=\"flex items-start gap-3\"><div class=\"p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0 mt-0.5\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = components.IconBell("w-5 h-5").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><div><div class=\"flex items-center gap-2\"><h2 class=\"text-sm font-semibold text-zinc-100\">Native Browser Web Push & PWA Direct Alerts</h2><span id=\"push-permission-badge\" class=\"inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-zinc-800 text-zinc-400 border border-zinc-700\"><span class=\"w-1.5 h-1.5 rounded-full bg-zinc-500\"></span> Checking...</span></div><p class=\"text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed\">Receive instant OS desktop & mobile notifications directly from your browser. Zero third-party apps, zero relay bots, and zero subscription costs. Works across macOS, Windows, Linux, Android, and iOS 16.4+.</p></div></div><div class=\"flex items-center gap-2 flex-shrink-0\"><!-- Send Verification Ping --><button type=\"button\" onclick=\"testWebPush()\" class=\"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-200 border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer\" title=\"Trigger immediate desktop OS test notification\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = components.IconSend("w-3.5 h-3.5 text-amber-400").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<span>Test OS Notification</span></button><!-- Enable/Disable Push Toggle --><button type=\"button\" id=\"push-action-btn\" onclick=\"toggleWebPush()\" class=\"px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-colors cursor-pointer\">Enable Browser Push</button></div></div><!-- PWA Install & Standalone Banner --><div class=\"flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-zinc-950/70 border border-zinc-800/80 text-[11px] text-zinc-400\"><div class=\"flex items-center gap-2 font-mono\"><span class=\"text-emerald-400\">⚡ PWA Ready:</span> <span>Standalone progressive web app with offline telemetry caching & full-screen ops console.</span></div><span class=\"text-zinc-500 hidden sm:inline\">Chrome • Safari • Edge • Firefox</span></div></div><!-- Protocol Presets Overview Cards --> <div class=\"grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2\"><!-- Discord Card --><div class=\"p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all\"><div class=\"flex items-center gap-2 mb-1.5\"><div class=\"w-2 h-2 rounded-full bg-[#5865F2]\"></div><span class=\"text-xs font-semibold text-zinc-200\">Discord</span></div><p class=\"text-[11px] text-zinc-400\">Rich embed cards with outage & recovery color pills.</p></div><!-- Telegram Card --><div class=\"p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all\"><div class=\"flex items-center gap-2 mb-1.5\"><div class=\"w-2 h-2 rounded-full bg-[#229ED9]\"></div><span class=\"text-xs font-semibold text-zinc-200\">Telegram</span></div><p class=\"text-[11px] text-zinc-400\">Direct Bot API messaging with formatted HTML alerts.</p></div><!-- Slack Card --><div class=\"p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all\"><div class=\"flex items-center gap-2 mb-1.5\"><div class=\"w-2 h-2 rounded-full bg-[#E01E5A]\"></div><span class=\"text-xs font-semibold text-zinc-200\">Slack</span></div><p class=\"text-[11px] text-zinc-400\">Incident attachments with structured telemetry blocks.</p></div><!-- ntfy.sh Card --><div class=\"p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all\"><div class=\"flex items-center gap-2 mb-1.5\"><div class=\"w-2 h-2 rounded-full bg-emerald-400\"></div><span class=\"text-xs font-semibold text-zinc-200\">ntfy.sh</span></div><p class=\"text-[11px] text-zinc-400\">100% free instant phone push alerts without an account.</p></div><!-- Custom Webhook Card --><div class=\"p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-lg hover:border-zinc-700/80 transition-all col-span-2 sm:col-span-1\"><div class=\"flex items-center gap-2 mb-1.5\"><div class=\"w-2 h-2 rounded-full bg-purple-400\"></div><span class=\"text-xs font-semibold text-zinc-200\">Webhook</span></div><p class=\"text-[11px] text-zinc-400\">JSON HTTP POST with secret HMAC/Bearer headers.</p></div></div><!-- Configured Channels Section --> <div class=\"space-y-3 pt-2\"><div class=\"flex items-center justify-between\"><h2 class=\"text-xs font-semibold uppercase tracking-wider text-zinc-400\">Configured Notification Channels</h2><span class=\"text-xs text-zinc-400 font-mono\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d channels registered", len(channels)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 97, Col: 104}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 151, Col: 104}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></div><div id=\"channels-list\" class=\"space-y-3\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</span></div><div id=\"channels-list\" class=\"space-y-3\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -94,7 +110,7 @@ func NotificationsPage(channels []models.NotificationChannel) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></div><!-- Provision New Channel Form Card --> <div id=\"new-channel-form\" class=\"mt-8 bg-zinc-900/70 border border-zinc-800/80 rounded-xl p-5 shadow-lg space-y-4\"><div class=\"flex items-center justify-between border-b border-zinc-800/80 pb-3\"><div><h3 class=\"text-sm font-semibold text-zinc-100\">Add Notification Channel</h3><p class=\"text-xs text-zinc-400 mt-0.5\">Configure a new alerting endpoint for instant downtime and recovery dispatches.</p></div><span class=\"px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700\">Zero Glue Code</span></div><form hx-post=\"/admin/notifications/new\" hx-target=\"#channels-list\" hx-swap=\"innerHTML\" class=\"space-y-4\" onsubmit=\"setTimeout(() =&gt; this.reset(), 100);\"><div class=\"grid grid-cols-1 md:grid-cols-2 gap-4\"><!-- Channel Name --><div><label class=\"block text-xs font-medium text-zinc-300 mb-1\">Channel Label</label> <input type=\"text\" id=\"channel-name-input\" name=\"name\" placeholder=\"e.g. SRE Discord Ops Channel\" required class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans\"></div><!-- Channel Type --><div><label class=\"block text-xs font-medium text-zinc-300 mb-1\">Preset Driver</label> <select name=\"channel_type\" id=\"channel-type-select\" onchange=\"updateChannelFields(this.value)\" class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-200 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer\"><option value=\"discord\">Discord Webhook</option> <option value=\"slack\">Slack Incoming Webhook</option> <option value=\"telegram\">Telegram Bot</option> <option value=\"ntfy\">ntfy.sh (Instant Mobile Phone Push)</option> <option value=\"webhook\">Generic HTTP Webhook</option></select></div></div><!-- Dynamic Configuration Inputs --><div id=\"field-webhook\" class=\"space-y-2\"><label class=\"block text-xs font-medium text-zinc-300 mb-1\">Webhook URL</label> <input type=\"url\" name=\"webhook_url\" placeholder=\"https://discord.com/api/webhooks/... or https://hooks.slack.com/...\" class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono\"><p class=\"text-[11px] text-zinc-400\">For Discord: Channel Settings → Integrations → Webhooks → Copy Webhook URL.</p></div><div id=\"field-telegram\" class=\"hidden grid-cols-1 md:grid-cols-2 gap-4\"><div><label class=\"block text-xs font-medium text-zinc-300 mb-1\">Telegram Bot Token</label> <input type=\"text\" name=\"telegram_token\" placeholder=\"123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ\" class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono\"><p class=\"text-[11px] text-zinc-400 mt-1\">Obtained from @BotFather on Telegram.</p></div><div><label class=\"block text-xs font-medium text-zinc-300 mb-1\">Telegram Chat ID</label> <input type=\"text\" name=\"telegram_chat_id\" placeholder=\"e.g. -100123456789 or 987654321\" class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono\"><p class=\"text-[11px] text-zinc-400 mt-1\">Target user ID or group chat ID.</p></div></div><div id=\"field-ntfy\" class=\"hidden grid-cols-1 md:grid-cols-2 gap-4\"><div><label class=\"block text-xs font-medium text-zinc-300 mb-1\">ntfy Topic</label> <input type=\"text\" name=\"ntfy_topic\" placeholder=\"e.g. my-private-company-alerts-2026\" class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono\"><p class=\"text-[11px] text-zinc-400 mt-1\">Subscribe to this topic on the free ntfy mobile app (iOS & Android).</p></div><div><label class=\"block text-xs font-medium text-zinc-300 mb-1\">ntfy Server (Optional)</label> <input type=\"text\" name=\"ntfy_server\" placeholder=\"https://ntfy.sh (default)\" value=\"https://ntfy.sh\" class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono\"><p class=\"text-[11px] text-zinc-400 mt-1\">Use https://ntfy.sh or your self-hosted ntfy instance.</p></div></div><div class=\"flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-zinc-800/80\"><div class=\"flex items-center gap-4 text-xs text-zinc-300\"><label class=\"inline-flex items-center gap-2 cursor-pointer\"><input type=\"checkbox\" name=\"events_down\" checked class=\"rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-0\"> <span>Alert on Downtime</span></label> <label class=\"inline-flex items-center gap-2 cursor-pointer\"><input type=\"checkbox\" name=\"events_recovery\" checked class=\"rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-0\"> <span>Alert on Recovery</span></label></div><button type=\"submit\" class=\"px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs rounded-lg shadow-sm transition-colors cursor-pointer\">Register Alert Channel</button></div></form></div><!-- Field Switcher Script --> <script>\n\t\t\tfunction updateChannelFields(type) {\n\t\t\t\tconst webhookField = document.getElementById('field-webhook');\n\t\t\t\tconst telegramField = document.getElementById('field-telegram');\n\t\t\t\tconst ntfyField = document.getElementById('field-ntfy');\n\n\t\t\t\twebhookField.classList.add('hidden');\n\t\t\t\ttelegramField.classList.add('hidden');\n\t\t\t\ttelegramField.classList.remove('grid');\n\t\t\t\tntfyField.classList.add('hidden');\n\t\t\t\tntfyField.classList.remove('grid');\n\n\t\t\t\tif (type === 'telegram') {\n\t\t\t\t\ttelegramField.classList.remove('hidden');\n\t\t\t\t\ttelegramField.classList.add('grid');\n\t\t\t\t} else if (type === 'ntfy') {\n\t\t\t\t\tntfyField.classList.remove('hidden');\n\t\t\t\t\tntfyField.classList.add('grid');\n\t\t\t\t} else {\n\t\t\t\t\twebhookField.classList.remove('hidden');\n\t\t\t\t}\n\t\t\t}\n\t\t</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div></div><!-- Provision New Channel Form Card --> <div id=\"new-channel-form\" class=\"mt-8 bg-zinc-900/70 border border-zinc-800/80 rounded-xl p-5 shadow-lg space-y-4\"><div class=\"flex items-center justify-between border-b border-zinc-800/80 pb-3\"><div><h3 class=\"text-sm font-semibold text-zinc-100\">Add Notification Channel</h3><p class=\"text-xs text-zinc-400 mt-0.5\">Configure a new alerting endpoint for instant downtime and recovery dispatches.</p></div><span class=\"px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700\">Zero Glue Code</span></div><form hx-post=\"/admin/notifications/new\" hx-target=\"#channels-list\" hx-swap=\"innerHTML\" class=\"space-y-4\" onsubmit=\"setTimeout(() =&gt; this.reset(), 100);\"><div class=\"grid grid-cols-1 md:grid-cols-2 gap-4\"><!-- Channel Name --><div><label class=\"block text-xs font-medium text-zinc-300 mb-1\">Channel Label</label> <input type=\"text\" id=\"channel-name-input\" name=\"name\" placeholder=\"e.g. SRE Discord Ops Channel\" required class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans\"></div><!-- Channel Type --><div><label class=\"block text-xs font-medium text-zinc-300 mb-1\">Preset Driver</label> <select name=\"channel_type\" id=\"channel-type-select\" onchange=\"updateChannelFields(this.value)\" class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-200 focus:outline-none focus:border-zinc-600 font-sans cursor-pointer\"><option value=\"discord\">Discord Webhook</option> <option value=\"slack\">Slack Incoming Webhook</option> <option value=\"telegram\">Telegram Bot</option> <option value=\"ntfy\">ntfy.sh (Instant Mobile Phone Push)</option> <option value=\"webhook\">Generic HTTP Webhook</option></select></div></div><!-- Dynamic Configuration Inputs --><div id=\"field-webhook\" class=\"space-y-2\"><label class=\"block text-xs font-medium text-zinc-300 mb-1\">Webhook URL</label> <input type=\"url\" name=\"webhook_url\" placeholder=\"https://discord.com/api/webhooks/... or https://hooks.slack.com/...\" class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono\"><p class=\"text-[11px] text-zinc-400\">For Discord: Channel Settings → Integrations → Webhooks → Copy Webhook URL.</p></div><div id=\"field-telegram\" class=\"hidden grid-cols-1 md:grid-cols-2 gap-4\"><div><label class=\"block text-xs font-medium text-zinc-300 mb-1\">Telegram Bot Token</label> <input type=\"text\" name=\"telegram_token\" placeholder=\"123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ\" class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono\"><p class=\"text-[11px] text-zinc-400 mt-1\">Obtained from @BotFather on Telegram.</p></div><div><label class=\"block text-xs font-medium text-zinc-300 mb-1\">Telegram Chat ID</label> <input type=\"text\" name=\"telegram_chat_id\" placeholder=\"e.g. -100123456789 or 987654321\" class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono\"><p class=\"text-[11px] text-zinc-400 mt-1\">Target user ID or group chat ID.</p></div></div><div id=\"field-ntfy\" class=\"hidden grid-cols-1 md:grid-cols-2 gap-4\"><div><label class=\"block text-xs font-medium text-zinc-300 mb-1\">ntfy Topic</label> <input type=\"text\" name=\"ntfy_topic\" placeholder=\"e.g. my-private-company-alerts-2026\" class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono\"><p class=\"text-[11px] text-zinc-400 mt-1\">Subscribe to this topic on the free ntfy mobile app (iOS & Android).</p></div><div><label class=\"block text-xs font-medium text-zinc-300 mb-1\">ntfy Server (Optional)</label> <input type=\"text\" name=\"ntfy_server\" placeholder=\"https://ntfy.sh (default)\" value=\"https://ntfy.sh\" class=\"w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-mono\"><p class=\"text-[11px] text-zinc-400 mt-1\">Use https://ntfy.sh or your self-hosted ntfy instance.</p></div></div><div class=\"flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-zinc-800/80\"><div class=\"flex items-center gap-4 text-xs text-zinc-300\"><label class=\"inline-flex items-center gap-2 cursor-pointer\"><input type=\"checkbox\" name=\"events_down\" checked class=\"rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-0\"> <span>Alert on Downtime</span></label> <label class=\"inline-flex items-center gap-2 cursor-pointer\"><input type=\"checkbox\" name=\"events_recovery\" checked class=\"rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-0\"> <span>Alert on Recovery</span></label></div><button type=\"submit\" class=\"px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs rounded-lg shadow-sm transition-colors cursor-pointer\">Register Alert Channel</button></div></form></div><!-- Field Switcher Script --> <script>\n\t\t\tfunction updateChannelFields(type) {\n\t\t\t\tconst webhookField = document.getElementById('field-webhook');\n\t\t\t\tconst telegramField = document.getElementById('field-telegram');\n\t\t\t\tconst ntfyField = document.getElementById('field-ntfy');\n\n\t\t\t\twebhookField.classList.add('hidden');\n\t\t\t\ttelegramField.classList.add('hidden');\n\t\t\t\ttelegramField.classList.remove('grid');\n\t\t\t\tntfyField.classList.add('hidden');\n\t\t\t\tntfyField.classList.remove('grid');\n\n\t\t\t\tif (type === 'telegram') {\n\t\t\t\t\ttelegramField.classList.remove('hidden');\n\t\t\t\t\ttelegramField.classList.add('grid');\n\t\t\t\t} else if (type === 'ntfy') {\n\t\t\t\t\tntfyField.classList.remove('hidden');\n\t\t\t\t\tntfyField.classList.add('grid');\n\t\t\t\t} else {\n\t\t\t\t\twebhookField.classList.remove('hidden');\n\t\t\t\t}\n\t\t\t}\n\t\t</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -130,7 +146,7 @@ func ChannelsList(channels []models.NotificationChannel) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if len(channels) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"p-8 text-center bg-zinc-900/40 border border-zinc-800/80 rounded-xl space-y-2\"><p class=\"text-sm font-medium text-zinc-300\">No alert channels registered yet.</p><p class=\"text-xs text-zinc-400\">Add a channel below to receive instant push alerts whenever servers degrade or recover.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"p-8 text-center bg-zinc-900/40 border border-zinc-800/80 rounded-xl space-y-2\"><p class=\"text-sm font-medium text-zinc-300\">No alert channels registered yet.</p><p class=\"text-xs text-zinc-400\">Add a channel below to receive instant push alerts whenever servers degrade or recover.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -167,20 +183,20 @@ func ChannelCard(ch models.NotificationChannel) templ.Component {
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs("channel-card-" + ch.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 275, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 329, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" class=\"p-4 bg-zinc-900/70 border border-zinc-800/80 rounded-xl hover:border-zinc-700/80 transition-all space-y-3\"><div class=\"flex flex-col sm:flex-row sm:items-center justify-between gap-3\"><div class=\"flex items-center gap-3\"><!-- Brand Badge -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\" class=\"p-4 bg-zinc-900/70 border border-zinc-800/80 rounded-xl hover:border-zinc-700/80 transition-all space-y-3\"><div class=\"flex flex-col sm:flex-row sm:items-center justify-between gap-3\"><div class=\"flex items-center gap-3\"><!-- Brand Badge -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -188,89 +204,89 @@ func ChannelCard(ch models.NotificationChannel) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div><div class=\"flex items-center gap-2\"><span class=\"text-sm font-semibold text-zinc-100\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div><div class=\"flex items-center gap-2\"><span class=\"text-sm font-semibold text-zinc-100\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(ch.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 282, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 336, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if ch.Enabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<span class=\"inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20\"><span class=\"w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse\"></span> Active</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<span class=\"inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20\"><span class=\"w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse\"></span> Active</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<span class=\"px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-800 text-zinc-400 border border-zinc-700\">Disabled</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<span class=\"px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-800 text-zinc-400 border border-zinc-700\">Disabled</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div><div class=\"flex items-center gap-3 text-[11px] text-zinc-400 mt-0.5\"><span>Events: <span class=\"font-mono text-zinc-300\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div><div class=\"flex items-center gap-3 text-[11px] text-zinc-400 mt-0.5\"><span>Events: <span class=\"font-mono text-zinc-300\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(ch.Events)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 295, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 349, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</span></span> <span>•</span> <span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</span></span> <span>•</span> <span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if ch.LastDispatchedAt != nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "Last alert: <span class=\"font-mono text-zinc-300\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "Last alert: <span class=\"font-mono text-zinc-300\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(ch.LastDispatchedAt.Format("Jan 02, 15:04:05"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 299, Col: 106}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 353, Col: 106}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "Last alert: <span class=\"text-zinc-400\">None yet</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "Last alert: <span class=\"text-zinc-400\">None yet</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span></div></div></div><!-- Action Buttons --><div class=\"flex items-center gap-2\"><!-- Send Test Alert Button --><button type=\"button\" hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</span></div></div></div><!-- Action Buttons --><div class=\"flex items-center gap-2\"><!-- Send Test Alert Button --><button type=\"button\" hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/admin/notifications/%s/test", ch.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 313, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 367, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\" hx-target=\"#toast-container\" hx-swap=\"beforeend\" class=\"inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-200 border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer\" title=\"Send verification ping to this channel\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\" hx-target=\"#toast-container\" hx-swap=\"beforeend\" class=\"inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-200 border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer\" title=\"Send verification ping to this channel\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -278,61 +294,61 @@ func ChannelCard(ch models.NotificationChannel) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<span>Send Test</span></button><!-- Toggle Active Button --><button type=\"button\" hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<span>Send Test</span></button><!-- Toggle Active Button --><button type=\"button\" hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/admin/notifications/%s/toggle", ch.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 326, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 380, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\" hx-target=\"#channels-list\" hx-swap=\"innerHTML\" class=\"px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer\" title=\"Toggle enabled status\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\" hx-target=\"#channels-list\" hx-swap=\"innerHTML\" class=\"px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer\" title=\"Toggle enabled status\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if ch.Enabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<span>Pause</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<span>Pause</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<span>Enable</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<span>Enable</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</button><!-- Delete Button --><button type=\"button\" hx-delete=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</button><!-- Delete Button --><button type=\"button\" hx-delete=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/admin/notifications/%s", ch.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 342, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 396, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\" hx-target=\"#channels-list\" hx-swap=\"innerHTML\" hx-confirm=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\" hx-target=\"#channels-list\" hx-swap=\"innerHTML\" hx-confirm=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("Remove notification channel '%s'?", ch.Name))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 345, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 399, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" class=\"p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer\" title=\"Delete notification channel\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\" class=\"p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer\" title=\"Delete notification channel\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -340,33 +356,33 @@ func ChannelCard(ch models.NotificationChannel) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</button></div></div><!-- Masked Config Preview --><div class=\"bg-zinc-950/80 border border-zinc-800/80 rounded-lg px-3 py-1.5 text-[11px] font-mono text-zinc-400 flex items-center justify-between\"><span class=\"truncate\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</button></div></div><!-- Masked Config Preview --><div class=\"bg-zinc-950/80 border border-zinc-800/80 rounded-lg px-3 py-1.5 text-[11px] font-mono text-zinc-400 flex items-center justify-between\"><span class=\"truncate\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(maskChannelConfig(ch.ChannelType, ch.ConfigJSON))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 356, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 410, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</span> <span class=\"text-[10px] text-zinc-400 font-sans ml-2 flex-shrink-0\">ID: ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</span> <span class=\"text-[10px] text-zinc-400 font-sans ml-2 flex-shrink-0\">ID: ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(ch.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 357, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/notifications.templ`, Line: 411, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</span></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</span></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -397,27 +413,27 @@ func ChannelTypeBadge(channelType string) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		switch strings.ToLower(channelType) {
 		case "discord":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div class=\"w-8 h-8 rounded-lg bg-[#5865F2]/20 border border-[#5865F2]/40 text-[#5865F2] flex items-center justify-center font-bold text-xs\">DC</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div class=\"w-8 h-8 rounded-lg bg-[#5865F2]/20 border border-[#5865F2]/40 text-[#5865F2] flex items-center justify-center font-bold text-xs\">DC</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "telegram":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<div class=\"w-8 h-8 rounded-lg bg-[#229ED9]/20 border border-[#229ED9]/40 text-[#229ED9] flex items-center justify-center font-bold text-xs\">TG</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<div class=\"w-8 h-8 rounded-lg bg-[#229ED9]/20 border border-[#229ED9]/40 text-[#229ED9] flex items-center justify-center font-bold text-xs\">TG</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "slack":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div class=\"w-8 h-8 rounded-lg bg-[#E01E5A]/20 border border-[#E01E5A]/40 text-[#E01E5A] flex items-center justify-center font-bold text-xs\">SL</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"w-8 h-8 rounded-lg bg-[#E01E5A]/20 border border-[#E01E5A]/40 text-[#E01E5A] flex items-center justify-center font-bold text-xs\">SL</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "ntfy":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<div class=\"w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center font-bold text-xs\">NF</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<div class=\"w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center font-bold text-xs\">NF</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		default:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"w-8 h-8 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-400 flex items-center justify-center font-bold text-xs\">WH</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<div class=\"w-8 h-8 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-400 flex items-center justify-center font-bold text-xs\">WH</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

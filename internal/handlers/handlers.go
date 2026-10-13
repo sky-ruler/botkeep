@@ -1161,4 +1161,111 @@ func (h *Handler) ExportFleetYAML(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(yamlBytes)
 }
 
+// SubscribeWebPush registers a browser Web Push subscription.
+func (h *Handler) SubscribeWebPush(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Endpoint  string `json:"endpoint"`
+		P256DH    string `json:"p256dh"`
+		Auth      string `json:"auth"`
+		UserAgent string `json:"user_agent"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid subscription JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	if payload.Endpoint == "" {
+		http.Error(w, "Endpoint is required", http.StatusBadRequest)
+		return
+	}
+
+	sub := models.WebPushSubscription{
+		ID:        models.GeneratePushID(),
+		Endpoint:  payload.Endpoint,
+		P256DH:    payload.P256DH,
+		Auth:      payload.Auth,
+		UserAgent: payload.UserAgent,
+	}
+
+	if err := h.db.SaveWebPushSubscription(sub); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to save push subscription: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":  "subscribed",
+		"id":      sub.ID,
+		"message": "Direct browser push subscription registered successfully",
+	})
+}
+
+// UnsubscribeWebPush removes a browser push subscription.
+func (h *Handler) UnsubscribeWebPush(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Endpoint string `json:"endpoint"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&payload)
+
+	if payload.Endpoint != "" {
+		_ = h.db.DeleteWebPushSubscription(payload.Endpoint)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "unsubscribed"})
+}
+
+// TestWebPush triggers a test push notification broadcast.
+func (h *Handler) TestWebPush(w http.ResponseWriter, r *http.Request) {
+	dispatched, err := h.db.BroadcastWebPushNotification(
+		"🚨 BotKeep SRE Push Verification",
+		"Live browser push alert operational! Subscribed devices will receive instant incident notices.",
+		"/notifications",
+	)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Push broadcast failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":     "dispatched",
+		"dispatched": dispatched,
+	})
+}
+
+// GetWebPushStatus returns subscription count and active push devices.
+func (h *Handler) GetWebPushStatus(w http.ResponseWriter, r *http.Request) {
+	subs, err := h.db.GetWebPushSubscriptions()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"count":         len(subs),
+		"subscriptions": subs,
+	})
+}
+
+// DeleteWebPushByID removes a push device subscription by ID.
+func (h *Handler) DeleteWebPushByID(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		http.Error(w, "Subscription ID required", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.db.DeleteWebPushSubscriptionByID(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "deleted", "id": id})
+}
+
 

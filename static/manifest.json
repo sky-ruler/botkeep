@@ -1,0 +1,55 @@
+{
+  "name": "BotKeep DevOps Fleet Manager",
+  "short_name": "BotKeep",
+  "description": "Zero-dependency single-binary DevOps server management and SRE observability platform",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "orientation": "any",
+  "categories": ["developer", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Fleet Overview",
+      "short_name": "Fleet",
+      "description": "View live cluster nodes and metrics",
+      "url": "/",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Public Status",
+      "short_name": "Status",
+      "description": "Check public service status page",
+      "url": "/status",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Alert Channels",
+      "short_name": "Alerts",
+      "description": "Manage notifications & push settings",
+      "url": "/notifications",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

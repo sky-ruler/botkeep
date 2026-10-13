@@ -137,6 +137,30 @@ func main() {
 		http.StripPrefix("/static/", fileServer).ServeHTTP(w, r)
 	})
 
+	// PWA Manifest and Service Worker root routes
+	r.Get("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/manifest+json")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		data, err := fs.ReadFile(staticSubFS, "manifest.json")
+		if err != nil {
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
+		_, _ = w.Write(data)
+	})
+
+	r.Get("/sw.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		w.Header().Set("Service-Worker-Allowed", "/")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		data, err := fs.ReadFile(staticSubFS, "sw.js")
+		if err != nil {
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
+		_, _ = w.Write(data)
+	})
+
 	// Start Background Fleet & Endpoint Health Prober
 	mon := monitor.NewEngine(db, *flagInterval)
 	monCtx, cancelMon := context.WithCancel(context.Background())
@@ -199,6 +223,14 @@ func main() {
 	r.Post("/admin/notifications/{id}/test", h.TestNotificationChannel)
 	r.Post("/admin/notifications/test-all", h.TestAllNotifications)
 	r.Get("/api/notifications", h.NotificationsJSON)
+
+	// Web Push & PWA Direct Notification API
+	r.Post("/api/push/subscribe", h.SubscribeWebPush)
+	r.Post("/api/push/unsubscribe", h.UnsubscribeWebPush)
+	r.Post("/api/push/test", h.TestWebPush)
+	r.Get("/api/push/status", h.GetWebPushStatus)
+	r.Delete("/api/push/subscriptions/{id}", h.DeleteWebPushByID)
+	r.Post("/api/push/subscriptions/{id}/delete", h.DeleteWebPushByID)
 
 	// Zero-Config Satellite Mesh & Multi-Region Consensus API
 	r.Get("/api/satellites", h.SatellitesJSON)
