@@ -565,6 +565,43 @@ func (h *Handler) CreateIncident(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/status", http.StatusSeeOther)
 }
 
+// IncidentPostMortem renders the SRE root cause analysis and post-mortem page.
+func (h *Handler) IncidentPostMortem(w http.ResponseWriter, r *http.Request) {
+	id := sanitizeID(chi.URLParam(r, "id"))
+	if id == "" {
+		http.Error(w, "Invalid incident ID", http.StatusBadRequest)
+		return
+	}
+
+	pm, err := h.db.GeneratePostMortem(id)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to generate post-mortem: %v", err), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = pages.PostMortemPage(pm).Render(r.Context(), w)
+}
+
+// DownloadIncidentPostMortem exports the incident post-mortem as a GitHub-flavored Markdown file.
+func (h *Handler) DownloadIncidentPostMortem(w http.ResponseWriter, r *http.Request) {
+	id := sanitizeID(chi.URLParam(r, "id"))
+	if id == "" {
+		http.Error(w, "Invalid incident ID", http.StatusBadRequest)
+		return
+	}
+
+	pm, err := h.db.GeneratePostMortem(id)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to generate post-mortem: %v", err), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"postmortem-%s.md\"", id))
+	_, _ = w.Write([]byte(pm.ToMarkdown()))
+}
+
 // NotificationsPage renders the notification channel management page.
 func (h *Handler) NotificationsPage(w http.ResponseWriter, r *http.Request) {
 	channels, err := h.db.GetNotificationChannels()

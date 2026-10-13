@@ -64,6 +64,8 @@ func setupTestServer(t *testing.T) (*chi.Mux, func()) {
 	r.Post("/servers/{id}/synthetic", h.UpdateServerSynthetic)
 	r.Post("/servers/{id}/scenario", h.UpdateServerScenario)
 	r.Post("/servers/{id}/scenario/test", h.TestServerScenario)
+	r.Get("/status/incidents/{id}/postmortem", h.IncidentPostMortem)
+	r.Get("/status/incidents/{id}/postmortem/download", h.DownloadIncidentPostMortem)
 
 	cleanup := func() {
 		_ = db.Close()
@@ -458,5 +460,51 @@ func TestTestServerScenarioHandler(t *testing.T) {
 		t.Errorf("Expected toast component returned")
 	}
 }
+
+func TestIncidentPostMortemHandler(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// 1. Create a test incident via admin route
+	formInc := url.Values{
+		"title":               {"Network Transit Packet Drop"},
+		"status":              {"resolved"},
+		"severity":            {"major"},
+		"affected_components": {"cloudflare-cdn-edge"},
+		"message":             {"Upstream tier-1 transit link flap."},
+	}
+	reqCreate := httptest.NewRequest("POST", "/admin/incidents/new", strings.NewReader(formInc.Encode()))
+	reqCreate.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	wCreate := httptest.NewRecorder()
+	r.ServeHTTP(wCreate, reqCreate)
+
+	// 2. Fetch seeded incident from NewDB (e.g., inc-2026-001)
+	reqView := httptest.NewRequest("GET", "/status/incidents/inc-2026-001/postmortem", nil)
+	wView := httptest.NewRecorder()
+	r.ServeHTTP(wView, reqView)
+
+	if wView.Code != http.StatusOK {
+		t.Errorf("Expected status 200 on post-mortem view, got %d", wView.Code)
+	}
+	if !strings.Contains(wView.Body.String(), "Incident Post-Mortem") {
+		t.Errorf("Expected Post-Mortem page returned")
+	}
+
+	// 3. Test markdown download endpoint
+	reqDown := httptest.NewRequest("GET", "/status/incidents/inc-2026-001/postmortem/download", nil)
+	wDown := httptest.NewRecorder()
+	r.ServeHTTP(wDown, reqDown)
+
+	if wDown.Code != http.StatusOK {
+		t.Errorf("Expected status 200 on post-mortem download, got %d", wDown.Code)
+	}
+	if !strings.Contains(wDown.Body.String(), "# Incident Post-Mortem:") {
+		t.Errorf("Expected Markdown content in download output")
+	}
+	if wDown.Header().Get("Content-Type") != "text/markdown; charset=utf-8" {
+		t.Errorf("Expected markdown Content-Type, got %s", wDown.Header().Get("Content-Type"))
+	}
+}
+
 
 

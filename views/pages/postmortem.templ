@@ -1,0 +1,219 @@
+package pages
+
+import (
+	"fmt"
+	"strings"
+	"botkeep/internal/models"
+)
+
+templ PostMortemPage(pm *models.PostMortem) {
+	<!DOCTYPE html>
+	<html lang="en" class="h-full bg-zinc-950 text-zinc-100 antialiased">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ fmt.Sprintf("Post-Mortem: %s | BotKeep SRE", pm.Title) }</title>
+			<meta name="description" content={ fmt.Sprintf("Automated SRE post-mortem and root cause analysis report for %s", pm.Title) }/>
+			<link rel="stylesheet" href="/static/css/output.css"/>
+			<link rel="preconnect" href="https://fonts.googleapis.com"/>
+			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+			<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+			<script>
+				function copyMarkdown() {
+					const el = document.getElementById('markdown-raw');
+					if (el) {
+						navigator.clipboard.writeText(el.value).then(() => {
+							const btn = document.getElementById('copy-btn');
+							const orig = btn.innerText;
+							btn.innerText = 'Copied!';
+							btn.classList.add('text-emerald-400');
+							setTimeout(() => {
+								btn.innerText = orig;
+								btn.classList.remove('text-emerald-400');
+							}, 2000);
+						});
+					}
+				}
+			</script>
+		</head>
+		<body class="min-h-screen bg-zinc-950 font-sans selection:bg-emerald-500/20 selection:text-emerald-300">
+			<!-- Background Ambient Glow -->
+			<div class="fixed inset-0 pointer-events-none opacity-20">
+				<div class="absolute -top-40 -left-40 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"></div>
+				<div class="absolute top-1/2 -right-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
+			</div>
+
+			<div class="relative max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
+				<!-- Top Navigation -->
+				<div class="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-5">
+					<a
+						href="/status"
+						class="inline-flex items-center gap-2 text-xs font-medium text-zinc-400 hover:text-zinc-100 transition-colors"
+					>
+						<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<line x1="19" y1="12" x2="5" y2="12"></line>
+							<polyline points="12 19 5 12 12 5"></polyline>
+						</svg>
+						<span>Back to Status Page</span>
+					</a>
+
+					<div class="flex items-center gap-2.5">
+						<button
+							id="copy-btn"
+							type="button"
+							onclick="copyMarkdown()"
+							class="px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+						>
+							<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+								<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+							</svg>
+							<span>Copy Markdown</span>
+						</button>
+
+						<a
+							href={ templ.SafeURL("/status/incidents/" + pm.IncidentID + "/postmortem/download") }
+							download={ "postmortem-" + pm.IncidentID + ".md" }
+							class="px-3 py-1.5 text-xs font-medium text-zinc-100 bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+						>
+							<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+								<polyline points="7 10 12 15 17 10"></polyline>
+								<line x1="12" y1="15" x2="12" y2="3"></line>
+							</svg>
+							<span>Download .md</span>
+						</a>
+					</div>
+				</div>
+
+				<!-- Header Metadata -->
+				<header class="space-y-4">
+					<div class="flex flex-wrap items-center gap-2.5">
+						<span class="px-2.5 py-0.5 rounded text-xs font-mono uppercase font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
+							{ pm.IncidentID }
+						</span>
+						if pm.Status == "resolved" {
+							<span class="px-2.5 py-0.5 rounded text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+								RESOLVED
+							</span>
+						} else {
+							<span class="px-2.5 py-0.5 rounded text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+								ACTIVE OUTAGE
+							</span>
+						}
+						<span class="px-2.5 py-0.5 rounded text-xs font-mono text-zinc-400 bg-zinc-900 border border-zinc-800">
+							Severity: { strings.ToUpper(pm.Severity) }
+						</span>
+					</div>
+
+					<h1 class="text-2xl sm:text-3xl font-bold text-zinc-100 tracking-tight">
+						{ pm.Title }
+					</h1>
+
+					<!-- Key Metrics Grid -->
+					<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+						<div class="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+							<span class="text-[11px] text-zinc-500 uppercase font-mono tracking-wider">Duration / MTTR</span>
+							<p class="text-sm font-semibold text-emerald-400 font-mono mt-1">{ pm.DurationStr }</p>
+						</div>
+						<div class="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+							<span class="text-[11px] text-zinc-500 uppercase font-mono tracking-wider">Affected Node(s)</span>
+							<p class="text-xs font-mono text-zinc-200 mt-1 truncate" title={ pm.AffectedServices }>{ pm.AffectedServices }</p>
+						</div>
+						<div class="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+							<span class="text-[11px] text-zinc-500 uppercase font-mono tracking-wider">Detected At</span>
+							<p class="text-xs font-mono text-zinc-300 mt-1">{ pm.StartTime.Format("15:04:05 UTC") }</p>
+						</div>
+						<div class="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+							<span class="text-[11px] text-zinc-500 uppercase font-mono tracking-wider">Resolved At</span>
+							if pm.ResolvedTime != nil {
+								<p class="text-xs font-mono text-zinc-300 mt-1">{ pm.ResolvedTime.Format("15:04:05 UTC") }</p>
+							} else {
+								<p class="text-xs font-mono text-rose-400 mt-1">Pending</p>
+							}
+						</div>
+					</div>
+				</header>
+
+				<!-- Executive Summary & Impact -->
+				<section class="space-y-6">
+					<div class="p-5 rounded-xl border border-zinc-800 bg-zinc-900/40 space-y-2.5">
+						<h2 class="text-sm font-semibold text-zinc-200 uppercase tracking-wider font-mono">1. Executive Summary</h2>
+						<p class="text-xs sm:text-sm text-zinc-300 leading-relaxed">{ pm.Summary }</p>
+					</div>
+
+					<div class="p-5 rounded-xl border border-zinc-800 bg-zinc-900/40 space-y-2.5">
+						<h2 class="text-sm font-semibold text-zinc-200 uppercase tracking-wider font-mono">2. Impact & Blast Radius</h2>
+						<p class="text-xs sm:text-sm text-zinc-300 leading-relaxed">{ pm.Impact }</p>
+					</div>
+
+					<div class="p-5 rounded-xl border border-zinc-800 bg-zinc-900/40 space-y-2.5">
+						<h2 class="text-sm font-semibold text-zinc-200 uppercase tracking-wider font-mono">3. Root Cause Analysis (5 Whys)</h2>
+						<p class="text-xs sm:text-sm text-zinc-300 leading-relaxed font-mono bg-zinc-950 p-3 rounded-lg border border-zinc-800/80">
+							{ pm.RootCause }
+						</p>
+					</div>
+				</section>
+
+				<!-- Timeline Table -->
+				<section class="space-y-3">
+					<h2 class="text-sm font-semibold text-zinc-200 uppercase tracking-wider font-mono">4. Chronological Incident Timeline</h2>
+					<div class="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/30">
+						<table class="w-full text-left text-xs">
+							<thead class="bg-zinc-900/80 border-b border-zinc-800 text-[11px] font-mono text-zinc-400 uppercase">
+								<tr>
+									<th class="px-4 py-3">Timestamp</th>
+									<th class="px-4 py-3">Severity / Level</th>
+									<th class="px-4 py-3">Event Description</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-zinc-800/60 font-mono">
+								for _, row := range pm.TimelineEvents {
+									<tr class="hover:bg-zinc-800/30 transition-colors">
+										<td class="px-4 py-3 text-zinc-400 whitespace-nowrap">{ row.Timestamp }</td>
+										<td class="px-4 py-3 whitespace-nowrap">
+											if row.Impact == "CRITICAL" {
+												<span class="px-2 py-0.5 rounded text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/20">CRITICAL</span>
+											} else if row.Impact == "WARN" {
+												<span class="px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20">WARN</span>
+											} else if row.Impact == "RECOVERED" {
+												<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">RECOVERED</span>
+											} else {
+												<span class="px-2 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-400">INFO</span>
+											}
+										</td>
+										<td class="px-4 py-3 text-zinc-300 font-sans text-xs">{ row.Event }</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				</section>
+
+				<!-- Action Items -->
+				<section class="p-5 rounded-xl border border-zinc-800 bg-zinc-900/40 space-y-3">
+					<h2 class="text-sm font-semibold text-zinc-200 uppercase tracking-wider font-mono">5. Preventative Action Items</h2>
+					<ul class="space-y-2 text-xs sm:text-sm text-zinc-300">
+						for _, item := range pm.ActionItems {
+							<li class="flex items-start gap-2.5">
+								<span class="w-4 h-4 rounded border border-zinc-700 bg-zinc-800 flex items-center justify-center text-emerald-400 flex-shrink-0 mt-0.5">
+									✓
+								</span>
+								<span>{ item }</span>
+							</li>
+						}
+					</ul>
+				</section>
+
+				<!-- Raw Markdown Source (Hidden textarea for copy function) -->
+				<textarea id="markdown-raw" class="sr-only" aria-hidden="true" readonly>{ pm.ToMarkdown() }</textarea>
+
+				<!-- Footer -->
+				<footer class="pt-8 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-500 font-mono">
+					<span>Report generated by BotKeep SRE Engine</span>
+					<a href="/status" class="hover:text-zinc-300 transition-colors">Return to Status Page &rarr;</a>
+				</footer>
+			</div>
+		</body>
+	</html>
+}

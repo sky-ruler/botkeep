@@ -185,6 +185,8 @@ func main() {
 	r.Get("/status", h.StatusPage)
 	r.Get("/status/components", h.StatusComponents)
 	r.Get("/api/status", h.StatusJSON)
+	r.Get("/status/incidents/{id}/postmortem", h.IncidentPostMortem)
+	r.Get("/status/incidents/{id}/postmortem/download", h.DownloadIncidentPostMortem)
 	r.Post("/admin/incidents/new", h.CreateIncident)
 
 	// Multi-Channel Alert & Notification Management

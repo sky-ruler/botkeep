@@ -517,19 +517,19 @@ func IncidentCard(inc models.Incident) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</p><div class=\"flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-800/60 text-xs\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if inc.AffectedComponents != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<div class=\"text-[11px] font-mono text-zinc-500 flex items-center gap-1.5 pt-1\"><span class=\"text-zinc-600\">Affected:</span> <span class=\"text-zinc-400\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<div class=\"text-[11px] font-mono text-zinc-500 flex items-center gap-1.5\"><span class=\"text-zinc-600\">Affected:</span> <span class=\"text-zinc-400\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(inc.AffectedComponents)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/status.templ`, Line: 326, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/status.templ`, Line: 327, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
@@ -539,8 +539,44 @@ func IncidentCard(inc models.Incident) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<div></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<div class=\"flex items-center gap-3\"><a href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var21 templ.SafeURL = templ.SafeURL("/status/incidents/" + inc.ID + "/postmortem")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var21)))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\" class=\"text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1.5\" title=\"View Incident Root Cause Analysis &amp; Timeline\"><svg class=\"w-3.5 h-3.5\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"></path> <polyline points=\"14 2 14 8 20 8\"></polyline> <line x1=\"16\" y1=\"13\" x2=\"8\" y2=\"13\"></line> <line x1=\"16\" y1=\"17\" x2=\"8\" y2=\"17\"></line></svg> <span>SRE Post-Mortem</span></a> <a href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var22 templ.SafeURL = templ.SafeURL("/status/incidents/" + inc.ID + "/postmortem/download")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var22)))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "\" download=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var23 string
+		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs("postmortem-" + inc.ID + ".md")
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/status.templ`, Line: 348, Col: 46}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\" class=\"text-[11px] font-mono text-zinc-400 hover:text-zinc-200 transition-colors\" title=\"Download Markdown Report\">.md</a></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

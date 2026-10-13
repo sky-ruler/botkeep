@@ -1465,6 +1465,28 @@ func (db *DB) ResolveIncident(id string) error {
 	return err
 }
 
+// GetIncidentByID fetches a single incident by unique ID.
+func (db *DB) GetIncidentByID(id string) (*Incident, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var inc Incident
+	var res sql.NullTime
+	err := db.conn.QueryRow(`
+		SELECT id, title, status, severity, affected_components, message, created_at, resolved_at
+		FROM incidents
+		WHERE id = ?
+	`, id).Scan(&inc.ID, &inc.Title, &inc.Status, &inc.Severity, &inc.AffectedComponents, &inc.Message, &inc.CreatedAt, &res)
+	if err != nil {
+		return nil, err
+	}
+	if res.Valid {
+		inc.ResolvedAt = &res.Time
+	}
+	return &inc, nil
+}
+
+
 // ToggleServerVisibility switches public visibility of a target on the /status page.
 func (db *DB) ToggleServerVisibility(id string, isPublic bool) error {
 	db.mu.Lock()
