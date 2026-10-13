@@ -112,6 +112,26 @@ func (e *Engine) runProbeSweep(ctx context.Context) {
 func (e *Engine) ProbeServer(ctx context.Context, s models.Server) error {
 	switch s.Driver {
 	case "http":
+		if s.EndpointURL == "" && s.ScenarioSteps == "" {
+			return nil
+		}
+
+		// Multi-step synthetic scenario execution if defined
+		if s.ScenarioSteps != "" {
+			if steps, err := ParseScenarioSteps(s.ScenarioSteps); err == nil && len(steps) > 0 {
+				scenRes := ExecuteScenario(ctx, steps, 15*time.Second)
+				if !scenRes.Passed {
+					_ = e.db.RecordProbe(s.ID, scenRes.TotalLatency, 500, false, scenRes.ErrorMessage)
+					e.dispatchAlert(s, false, scenRes.ErrorMessage)
+					return fmt.Errorf("scenario failed: %s", scenRes.ErrorMessage)
+				}
+				if s.Status == "stopped" {
+					e.dispatchAlert(s, true, fmt.Sprintf("All %d synthetic scenario steps passed", scenRes.TotalSteps))
+				}
+				return e.db.RecordProbe(s.ID, scenRes.TotalLatency, 200, true, "")
+			}
+		}
+
 		if s.EndpointURL == "" {
 			return nil
 		}

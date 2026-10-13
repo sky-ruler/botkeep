@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS servers (
     expected_status TEXT NOT NULL DEFAULT '200',
     body_assertion TEXT NOT NULL DEFAULT '',
     custom_headers TEXT NOT NULL DEFAULT '',
+    scenario_steps TEXT NOT NULL DEFAULT '',
     is_public INTEGER NOT NULL DEFAULT 1,
     latency_ms REAL NOT NULL DEFAULT 0.0,
     uptime_pct REAL NOT NULL DEFAULT 100.0,

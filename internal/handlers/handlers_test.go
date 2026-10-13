@@ -62,6 +62,8 @@ func setupTestServer(t *testing.T) (*chi.Mux, func()) {
 	r.Post("/admin/notifications/test-all", h.TestAllNotifications)
 	r.Get("/api/notifications", h.NotificationsJSON)
 	r.Post("/servers/{id}/synthetic", h.UpdateServerSynthetic)
+	r.Post("/servers/{id}/scenario", h.UpdateServerScenario)
+	r.Post("/servers/{id}/scenario/test", h.TestServerScenario)
 
 	cleanup := func() {
 		_ = db.Close()
@@ -418,4 +420,43 @@ func TestUpdateServerSyntheticHandler(t *testing.T) {
 		t.Errorf("Expected detail-drawer returned in response")
 	}
 }
+
+func TestUpdateServerScenarioHandler(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	scenarioPayload := `[{"name":"Step 1","method":"GET","url":"https://example.com","expected_status":200}]`
+	form := url.Values{
+		"scenario_steps": {scenarioPayload},
+	}
+	req := httptest.NewRequest("POST", "/servers/srv-us-101/scenario", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200 on scenario update, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "detail-drawer") {
+		t.Errorf("Expected detail-drawer returned in response")
+	}
+}
+
+func TestTestServerScenarioHandler(t *testing.T) {
+	r, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// 1. Initially empty scenario -> should return warning toast
+	req := httptest.NewRequest("POST", "/servers/srv-us-101/scenario/test", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200 with toast, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "role=\"alert\"") {
+		t.Errorf("Expected toast component returned")
+	}
+}
+
 

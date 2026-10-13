@@ -208,6 +208,8 @@ func main() {
 	r.Post("/servers/{id}/runbook", h.UpdateServerRunbook)
 	r.Post("/servers/{id}/runbook/trigger", h.TriggerServerRunbook)
 	r.Post("/servers/{id}/synthetic", h.UpdateServerSynthetic)
+	r.Post("/servers/{id}/scenario", h.UpdateServerScenario)
+	r.Post("/servers/{id}/scenario/test", h.TestServerScenario)
 	r.Get("/api/fleet/gitops/export", h.ExportFleetYAML)
 
 	// Health check endpoint

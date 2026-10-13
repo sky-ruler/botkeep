@@ -379,6 +379,92 @@ templ ServerDetailDrawer(s models.Server, logs []models.LogEntry, remediations [
 					</div>
 				}
 
+				if s.Driver == "http" {
+					<!-- Multi-Step Synthetic Transaction Scenario -->
+					<div class="rounded-lg bg-zinc-950/60 border border-indigo-900/40 p-4 space-y-3">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<svg class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M4 17l6-6-6-6"></path>
+									<path d="M12 19h8"></path>
+								</svg>
+								<h4 class="text-xs font-semibold text-indigo-200">Multi-Step Synthetic Scenario (E2E API Journey)</h4>
+							</div>
+							if s.ScenarioSteps != "" {
+								<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Configured</span>
+							} else {
+								<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-800 text-zinc-400">Single Probe</span>
+							}
+						</div>
+						<p class="text-[11px] text-zinc-400">Chain sequential HTTP requests with persistent cookie session state (e.g. Auth Login &rarr; Token Query &rarr; Heartbeat). Evaluates step latency and response assertions.</p>
+
+						<form
+							hx-post={ "/servers/" + s.ID + "/scenario" }
+							hx-target="#detail-drawer"
+							hx-swap="outerHTML"
+							class="space-y-3"
+						>
+							<div class="space-y-1">
+								<div class="flex items-center justify-between">
+									<label class="text-[11px] text-zinc-400 font-medium">Scenario Steps (JSON Array)</label>
+									<button
+										type="button"
+										onclick="document.getElementById('scenario-textarea').value = JSON.stringify([{'name':'Health Check','method':'GET','url':'https://httpbin.org/status/200','expected_status':200},{'name':'Query Data','method':'GET','url':'https://httpbin.org/json','expected_status':200,'assertion':'slideshow'}], null, 2)"
+										class="text-[10px] text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
+									>
+										Load Demo Sequence
+									</button>
+								</div>
+								<textarea
+									id="scenario-textarea"
+									name="scenario_steps"
+									rows="5"
+									placeholder={ `[
+  {
+    "name": "User Auth",
+    "method": "POST",
+    "url": "https://api.example.com/v1/auth",
+    "body": "{\"user\":\"botkeep\"}",
+    "expected_status": 200,
+    "assertion": "token"
+  },
+  {
+    "name": "Fetch Dashboard",
+    "method": "GET",
+    "url": "https://api.example.com/v1/dashboard",
+    "expected_status": 200,
+    "assertion": "active"
+  }
+]` }
+									class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"
+								>{ s.ScenarioSteps }</textarea>
+							</div>
+
+							<div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+								if s.ScenarioSteps != "" {
+									<button
+										type="button"
+										hx-post={ "/servers/" + s.ID + "/scenario/test" }
+										hx-swap="none"
+										class="px-2.5 py-1 rounded text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-colors cursor-pointer"
+										title="Execute live scenario dry-run"
+									>
+										Test Flight
+									</button>
+								} else {
+									<div></div>
+								}
+								<button
+									type="submit"
+									class="px-3 py-1 rounded text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer shadow-sm"
+								>
+									Save Scenario
+								</button>
+							</div>
+						</form>
+					</div>
+				}
+
 				<!-- Active Self-Healing Runbook Section -->
 				<div class="rounded-lg bg-zinc-950/60 border border-zinc-800 p-4 space-y-3">
 					<div class="flex items-center justify-between">

@@ -40,6 +40,7 @@ type Server struct {
 	ExpectedStatus   string                   `json:"expected_status"`
 	BodyAssertion    string                   `json:"body_assertion"`
 	CustomHeaders    string                   `json:"custom_headers"`
+	ScenarioSteps    string                   `json:"scenario_steps"`
 	IsPublic         bool                     `json:"is_public"`
 	LatencyMS        float64                  `json:"latency_ms"`
 	UptimePct        float64                  `json:"uptime_pct"`
@@ -155,6 +156,34 @@ type RegionalProbeSummary struct {
 	Status      string    `json:"status"` // "operational", "degraded", "down"
 }
 
+type SyntheticStep struct {
+	Name           string            `json:"name"`
+	Method         string            `json:"method"`
+	URL            string            `json:"url"`
+	Headers        map[string]string `json:"headers,omitempty"`
+	Body           string            `json:"body,omitempty"`
+	ExpectedStatus int               `json:"expected_status"`
+	Assertion      string            `json:"assertion,omitempty"`
+}
+
+type StepProbeResult struct {
+	StepIndex   int     `json:"step_index"`
+	Name        string  `json:"name"`
+	StatusCode  int     `json:"status_code"`
+	LatencyMS   float64 `json:"latency_ms"`
+	Success     bool    `json:"success"`
+	ErrorReason string  `json:"error_reason,omitempty"`
+}
+
+type ScenarioResult struct {
+	TotalSteps   int               `json:"total_steps"`
+	FailedStep   int               `json:"failed_step,omitempty"`
+	StepResults  []StepProbeResult `json:"step_results"`
+	TotalLatency float64           `json:"total_latency_ms"`
+	Passed       bool              `json:"passed"`
+	ErrorMessage string            `json:"error_message,omitempty"`
+}
+
 type ClusterMetrics struct {
 	AvgCPU       float64
 	TotalMemory  float64
@@ -237,6 +266,7 @@ func NewDB(dbPath string) (*DB, error) {
 		"ALTER TABLE servers ADD COLUMN expected_status TEXT NOT NULL DEFAULT '200';",
 		"ALTER TABLE servers ADD COLUMN body_assertion TEXT NOT NULL DEFAULT '';",
 		"ALTER TABLE servers ADD COLUMN custom_headers TEXT NOT NULL DEFAULT '';",
+		"ALTER TABLE servers ADD COLUMN scenario_steps TEXT NOT NULL DEFAULT '';",
 	}
 	for _, m := range migrations {
 		_, _ = conn.Exec(m)
@@ -262,6 +292,51 @@ func NewDB(dbPath string) (*DB, error) {
 		}
 		_, _ = conn.Exec("PRAGMA foreign_keys = ON;")
 	}
+
+	// Dynamic repair for stale foreign keys pointing to legacy rename artifacts
+	var remSQL string
+	_ = conn.QueryRow("SELECT sql FROM sqlite_master WHERE type='table' AND name='remediations'").Scan(&remSQL)
+	if strings.Contains(remSQL, "servers_old_v1") {
+		_, _ = conn.Exec("PRAGMA foreign_keys = OFF;")
+		_, _ = conn.Exec("CREATE TABLE remediations_fix AS SELECT * FROM remediations;")
+		_, _ = conn.Exec("DROP TABLE remediations;")
+		_, _ = conn.Exec(`CREATE TABLE remediations (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			server_id TEXT NOT NULL,
+			action_name TEXT NOT NULL,
+			trigger_reason TEXT NOT NULL,
+			status TEXT NOT NULL CHECK(status IN ('triggered', 'in_progress', 'healed', 'failed')),
+			response_code INTEGER NOT NULL DEFAULT 0,
+			output_log TEXT NOT NULL DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			resolved_at DATETIME,
+			FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE CASCADE
+		);`)
+		_, _ = conn.Exec("INSERT INTO remediations SELECT * FROM remediations_fix;")
+		_, _ = conn.Exec("DROP TABLE remediations_fix;")
+		_, _ = conn.Exec("PRAGMA foreign_keys = ON;")
+	}
+
+	var phSQL string
+	_ = conn.QueryRow("SELECT sql FROM sqlite_master WHERE type='table' AND name='probe_history'").Scan(&phSQL)
+	if strings.Contains(phSQL, "servers_old_v1") {
+		_, _ = conn.Exec("PRAGMA foreign_keys = OFF;")
+		_, _ = conn.Exec("CREATE TABLE probe_history_fix AS SELECT * FROM probe_history;")
+		_, _ = conn.Exec("DROP TABLE probe_history;")
+		_, _ = conn.Exec(`CREATE TABLE probe_history (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			server_id TEXT NOT NULL,
+			latency_ms REAL NOT NULL,
+			status_code INTEGER NOT NULL,
+			success INTEGER NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE CASCADE
+		);`)
+		_, _ = conn.Exec("INSERT INTO probe_history SELECT * FROM probe_history_fix;")
+		_, _ = conn.Exec("DROP TABLE probe_history_fix;")
+		_, _ = conn.Exec("PRAGMA foreign_keys = ON;")
+	}
+
 
 	// Execute embedded schema (tables, foreign keys, indexes)
 	if _, err := conn.Exec(schemaSQL); err != nil {
@@ -308,7 +383,7 @@ func (db *DB) GetServerByID(id string) (*Server, error) {
 	err := db.conn.QueryRow(`
 		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
 		       ssl_issuer, ssl_sans, ssl_valid_to, dns_latency_ms, dns_records, grpc_service,
-		       http_method, expected_status, body_assertion, custom_headers,
+		       http_method, expected_status, body_assertion, custom_headers, scenario_steps,
 		       is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
 		       last_checked, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at
 		FROM servers
@@ -316,7 +391,7 @@ func (db *DB) GetServerByID(id string) (*Server, error) {
 	`, id).Scan(
 		&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays,
 		&s.SSLIssuer, &s.SSLSANs, &sslValidTo, &s.DNSLatencyMS, &s.DNSRecords, &s.GRPCService,
-		&s.HTTPMethod, &s.ExpectedStatus, &s.BodyAssertion, &s.CustomHeaders,
+		&s.HTTPMethod, &s.ExpectedStatus, &s.BodyAssertion, &s.CustomHeaders, &s.ScenarioSteps,
 		&isPublicInt, &s.LatencyMS, &s.UptimePct, &s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime,
 		&lastChecked, &s.RunbookURL, &runbookEnabledInt, &s.AutoHealAttempts, &lastHealed, &s.CreatedAt, &s.UpdatedAt,
 	)
@@ -386,7 +461,7 @@ func (db *DB) SearchServers(query, status, region string) ([]Server, error) {
 	sqlQuery := `
 		SELECT id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
 		       ssl_issuer, ssl_sans, ssl_valid_to, dns_latency_ms, dns_records, grpc_service,
-		       http_method, expected_status, body_assertion, custom_headers,
+		       http_method, expected_status, body_assertion, custom_headers, scenario_steps,
 		       is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
 		       last_checked, runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at
 		FROM servers
@@ -409,7 +484,7 @@ func (db *DB) SearchServers(query, status, region string) ([]Server, error) {
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.IPAddress, &s.Region, &s.Status, &s.Driver, &s.EndpointURL, &s.Protocol, &s.SSLExpiryDays,
 			&s.SSLIssuer, &s.SSLSANs, &sslValidTo, &s.DNSLatencyMS, &s.DNSRecords, &s.GRPCService,
-			&s.HTTPMethod, &s.ExpectedStatus, &s.BodyAssertion, &s.CustomHeaders,
+			&s.HTTPMethod, &s.ExpectedStatus, &s.BodyAssertion, &s.CustomHeaders, &s.ScenarioSteps,
 			&isPublicInt, &s.LatencyMS, &s.UptimePct, &s.CPUUsage, &s.MemoryUsage, &s.StorageUsage, &s.Uptime,
 			&lastChecked, &s.RunbookURL, &runbookEnabledInt, &s.AutoHealAttempts, &lastHealed, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
@@ -708,24 +783,25 @@ func (db *DB) CreateServer(name, region, driver, endpointURL string) (*Server, e
 		ExpectedStatus: "200",
 		BodyAssertion:  "",
 		CustomHeaders:  "",
-		IsPublic:      true,
-		LatencyMS:     latency,
-		UptimePct:     100.0,
-		CPUUsage:      cpu,
-		MemoryUsage:   mem,
-		StorageUsage:  disk,
-		Uptime:        "1m (provisioned)",
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ScenarioSteps:  "",
+		IsPublic:       true,
+		LatencyMS:      latency,
+		UptimePct:      100.0,
+		CPUUsage:       cpu,
+		MemoryUsage:    mem,
+		StorageUsage:   disk,
+		Uptime:         "1m (provisioned)",
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 
 	_, err := db.conn.Exec(`
 		INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
 		                     ssl_issuer, ssl_sans, ssl_valid_to, dns_latency_ms, dns_records, grpc_service,
-		                     http_method, expected_status, body_assertion, custom_headers,
+		                     http_method, expected_status, body_assertion, custom_headers, scenario_steps,
 		                     is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
 		                     runbook_url, runbook_enabled, auto_heal_attempts, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', '', NULL, 0.0, '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 0, 0, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', '', NULL, 0.0, '', '', ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, '', 0, 0, ?, ?)
 	`, server.ID, server.Name, server.IPAddress, server.Region, server.Status, server.Driver, server.EndpointURL,
 		server.Protocol, server.SSLExpiryDays, server.HTTPMethod, server.ExpectedStatus, server.BodyAssertion, server.CustomHeaders,
 		1, server.LatencyMS, server.UptimePct, server.CPUUsage, server.MemoryUsage,
@@ -1111,10 +1187,10 @@ func (db *DB) SeedDemoFleet() error {
 		_, err := db.conn.Exec(`
 			INSERT INTO servers (id, name, ip_address, region, status, driver, endpoint_url, protocol, ssl_expiry_days,
 			                     ssl_issuer, ssl_sans, ssl_valid_to, dns_latency_ms, dns_records, grpc_service,
-			                     http_method, expected_status, body_assertion, custom_headers,
+			                     http_method, expected_status, body_assertion, custom_headers, scenario_steps,
 			                     is_public, latency_ms, uptime_pct, cpu_usage, memory_usage, storage_usage, uptime,
 			                     runbook_url, runbook_enabled, auto_heal_attempts, last_healed_at, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'GET', '200', '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'GET', '200', '', '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, s.ID, s.Name, s.IPAddress, s.Region, s.Status, s.Driver, s.EndpointURL, s.Protocol, s.SSLExpiryDays,
 			s.SSLIssuer, s.SSLSANs, sslValidTo, s.DNSLatencyMS, s.DNSRecords, s.GRPCService,
 			1, s.LatencyMS, s.UptimePct, s.CPUUsage, s.MemoryUsage, s.StorageUsage, s.Uptime,
@@ -1961,3 +2037,16 @@ func (db *DB) UpdateServerSynthetic(id string, method, expectedStatus, bodyAsser
 	`, method, expectedStatus, bodyAssertion, headers, id)
 	return err
 }
+
+func (db *DB) UpdateServerScenario(id string, scenarioJSON string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	_, err := db.conn.Exec(`
+		UPDATE servers
+		SET scenario_steps = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, strings.TrimSpace(scenarioJSON), id)
+	return err
+}
+

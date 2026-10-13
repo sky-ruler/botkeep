@@ -1007,6 +1007,77 @@ func (h *Handler) UpdateServerSynthetic(w http.ResponseWriter, r *http.Request) 
 	_ = pages.ServerDetailDrawer(*server, logs, remediations).Render(r.Context(), w)
 }
 
+// UpdateServerScenario saves multi-step synthetic scenario configuration for a server node.
+func (h *Handler) UpdateServerScenario(w http.ResponseWriter, r *http.Request) {
+	id := sanitizeID(chi.URLParam(r, "id"))
+	if id == "" {
+		http.Error(w, "Invalid server ID provided", http.StatusBadRequest)
+		return
+	}
+
+	_ = r.ParseForm()
+	scenarioJSON := strings.TrimSpace(r.FormValue("scenario_steps"))
+
+	// Validate JSON format if not empty
+	if scenarioJSON != "" {
+		if _, err := monitor.ParseScenarioSteps(scenarioJSON); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid scenario JSON schema: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := h.db.UpdateServerScenario(id, scenarioJSON); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update scenario: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	server, err := h.db.GetServerByID(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	logs, _ := h.db.GetServerLogs(id, 15)
+	remediations, _ := h.db.GetServerRemediations(id, 5)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = pages.ServerDetailDrawer(*server, logs, remediations).Render(r.Context(), w)
+}
+
+// TestServerScenario runs an immediate dry-run execution of a multi-step synthetic scenario.
+func (h *Handler) TestServerScenario(w http.ResponseWriter, r *http.Request) {
+	id := sanitizeID(chi.URLParam(r, "id"))
+	if id == "" {
+		http.Error(w, "Invalid server ID", http.StatusBadRequest)
+		return
+	}
+
+	server, err := h.db.GetServerByID(id)
+	if err != nil {
+		http.Error(w, "Server not found", http.StatusNotFound)
+		return
+	}
+
+	steps, err := monitor.ParseScenarioSteps(server.ScenarioSteps)
+	if err != nil || len(steps) == 0 {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = components.Toast("No scenario steps configured to test", "warning").Render(r.Context(), w)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+
+	res := monitor.ExecuteScenario(ctx, steps, 15*time.Second)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if res.Passed {
+		msg := fmt.Sprintf("Scenario passed: %d/%d steps succeeded (%.1fms total latency)", res.TotalSteps, res.TotalSteps, res.TotalLatency)
+		_ = components.Toast(msg, "success").Render(r.Context(), w)
+	} else {
+		msg := fmt.Sprintf("Scenario failed at step %d: %s", res.FailedStep, res.ErrorMessage)
+		_ = components.Toast(msg, "error").Render(r.Context(), w)
+	}
+}
+
 // TriggerServerRunbook executes a manual smoke test of a server's auto-healing runbook.
 func (h *Handler) TriggerServerRunbook(w http.ResponseWriter, r *http.Request) {
 	id := sanitizeID(chi.URLParam(r, "id"))
