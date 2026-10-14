@@ -122,6 +122,9 @@ To establish a defensible, undisputed lead in the open-source DevOps space, here
 | **Phase 3** | **Multi-Region Satellites (`botkeep agent`)** | Prevents false alarms via 2-region consensus; global edge latency heatmaps. | ⭐⭐⭐⭐⭐ | ✅ **Completed** (Commit `be47819`) |
 | **Phase 4** | **Self-Healing Runbooks & GitOps `fleet.yaml`** | Bridges the gap between passive monitoring and autonomous orchestration. | ⭐⭐⭐⭐⭐ | ✅ **Completed** (Commit `43f8fa3`) |
 | **Phase 5** | **gRPC & SSL/Domain Intelligence Suite** | Native `grpc.health.v1` wire checks, deep TLS cert intelligence, and DNS latency auditing. | ⭐⭐⭐⭐⭐ | ✅ **Completed** (Commit `db14550`) |
+| **Phase 6** | **Multi-Step Synthetic Scenarios Engine** | Chained sequential user journeys (login → session cookies → authenticated requests → assertions) with test flights. | ⭐⭐⭐⭐⭐ | ✅ **Completed** (Commit `3c51f20`) |
+| **Phase 7** | **Incident Post-Mortem & Timeline Exporter** | Automated SRE post-mortems with MTTR calculation, 5-Whys Root Cause Analysis, timeline tables, and Markdown export. | ⭐⭐⭐⭐⭐ | ✅ **Completed** (Commit `65f8fec`) |
+| **Phase 8** | **Native Browser Web Push & PWA Engine** | Direct OS desktop/mobile push alerts without third-party bots, offline shell caching, and standalone PWA installation. | ⭐⭐⭐⭐⭐ | ✅ **Completed** (Commit `3edbc64`) |
 
 ---
 

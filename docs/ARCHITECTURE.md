@@ -99,21 +99,32 @@ type Engine struct {
 ### Supported Protocol Drivers
 
 1. **HTTP / HTTPS Driver (`driver == "http"`)**:
-   - Sends non-blocking HTTP GET requests with custom `BotKeep-Fleet-Prober/2.0` User-Agent.
+   - Sends non-blocking HTTP GET/POST/PUT/HEAD/DELETE requests with custom User-Agent.
    - Measures roundtrip latency with microsecond accuracy.
-   - **Live TLS/SSL Certificate Inspection**: Automatically intercepts `resp.TLS.PeerCertificates[0].NotAfter` to calculate and store the exact days remaining until SSL certificate expiration (`ssl_expiry_days`).
+   - **Deep TLS/SSL Certificate Inspection**: Intercepts `resp.TLS.PeerCertificates` and parses NotAfter, Issuer, Subject Common Name, and SANs (Subject Alternative Names) to audit certificate expiration days.
+   - **Single-Step Synthetic Assertions**: Validates expected status codes, response headers, and response body substring keyword assertions.
 2. **TCP Socket Driver (`driver == "tcp"`)**:
    - Uses `net.Dialer` with a strict 4-second timeout to check direct TCP connectivity to databases, caches, and daemon ports (e.g. PostgreSQL `host:5432`, Redis `host:6379`, SSH `host:22`, Kafka `host:9092`).
    - Measures raw TCP handshake latency without requiring HTTP protocol overhead.
-3. **Simulated Demo Driver (`driver == "demo"`)**:
-   - Provides organic jitter for realistic local testing without external network dependencies.
+3. **gRPC Native Health Probing Driver (`driver == "grpc"`)**:
+   - Uses direct wire-level dialer to query standard `grpc.health.v1.Health/Check` service endpoints without HTTP reverse-proxy translation.
+4. **DNS Latency & Recursive Records Driver (`driver == "dns"`)**:
+   - Measures DNS resolution roundtrip latency against standard and custom nameservers, recursively querying A, AAAA, CNAME, MX, and TXT records.
+5. **Simulated Demo Driver (`driver == "demo"`)**:
+   - Provides organic jitter and simulated outage toggles for local sandbox testing without network dependencies.
+
+### Multi-Step Synthetic Scenarios Engine (`internal/monitor/scenario.go`)
+Beyond single-ping checks, BotKeep includes a multi-step synthetic transaction runner:
+- **Cookie Jar Session Persistence**: Maintains an active, in-memory `net/http/cookiejar.Jar` across sequential chained requests (e.g., Step 1: `POST /login` → Step 2: session cookie stored → Step 3: `GET /dashboard` with session cookie → Step 4: keyword assertion `Welcome, Admin`).
+- **Granular Diagnostics**: Records per-step HTTP status, execution latency, and error strings.
+- **In-Memory Test Flights**: Operators can execute immediate dry-run simulations (`POST /servers/{id}/scenario/test`) to validate scenario logic prior to production scheduling.
 
 ### Automated Incident Webhook Alerting
 When `BOTKEEP_WEBHOOK_URL` is set, the prober dispatches asynchronous non-blocking JSON webhooks upon downtime incidents (`INCIDENT_DOWN`) and recovery transitions (`INCIDENT_RESOLVED`).
 
 ---
 
-## 5. Enterprise Integrations & Open Standards
+## 5. Enterprise Integrations & Subsystems
 
 ### Prometheus / OpenMetrics Exposition (`/metrics/prometheus`)
 BotKeep includes a native Prometheus scraper endpoint. Standard monitoring systems like Prometheus, Grafana Agent, or Datadog can scrape `/metrics/prometheus` directly to ingest:
@@ -122,22 +133,45 @@ BotKeep includes a native Prometheus scraper endpoint. Standard monitoring syste
 - SSL certificate expiration remaining days (`botkeep_node_ssl_expiry_days`).
 - Real-time Go engine heap allocation (`botkeep_host_allocated_mb`), goroutines, and GC cycles.
 
-### Fleet Configuration JSON Export (`/api/fleet/export`)
-Operators can download an instantaneous backup of the entire fleet registry, drivers, endpoints, regions, and SLA history as a clean JSON document.
+### Declarative GitOps Mode (`fleet.yaml`)
+Operators can manage fleet monitoring topology entirely as code:
+- **Bi-Directional Synchronization**: Export current configuration as clean YAML (`/api/fleet/gitops/export`) or launch with `-fleet fleet.yaml`.
+- **Live File Watcher**: `internal/gitops/gitops.go` actively watches `fleet.yaml` and hot-reloads targets in the background with zero server downtime.
 
-### Public Status Page & Incident Engine (`/status`)
+### Public Status Page & SRE Post-Mortem Engine (`/status`)
 BotKeep includes an integrated customer-facing status page requiring zero external hosting or third-party fees:
 - **Public Component Isolation**: The `servers.is_public` boolean column allows operators to expose customer-facing endpoints while keeping internal nodes private.
-- **Incident Tracking**: The `incidents` SQLite table tracks chronological post-mortems and scheduled maintenance windows with status pills (`investigating`, `identified`, `monitoring`, `resolved`).
-- **Live HTMX Partial Polling**: Public visitors' browsers poll `/status/components` every 10 seconds to stream real-time latency and SLA updates without page reloads.
-- **CORS-Enabled Programmatic API**: `/api/status` returns instant JSON health indicators for shields.io badges or client app integrations.
+- **Incident Tracking**: The `incidents` SQLite table tracks chronological status updates with status pills (`investigating`, `identified`, `monitoring`, `resolved`).
+- **Automated SRE Post-Mortems (`internal/models/postmortem.go`)**:
+  - Automatically calculates real **MTTR** (Mean Time to Resolution).
+  - Formulates a **5-Whys Root Cause Analysis** based on failure telemetry.
+  - Aggregates chronological events from the audit log into a minute-by-minute timeline table.
+  - Exports directly to web viewer (`/status/incidents/{id}/postmortem`) and downloadable Markdown (`/status/incidents/{id}/postmortem/download`).
+
+### Native Browser Web Push & Progressive Web App (PWA) Engine
+Direct OS desktop and mobile notifications without third-party bots, relay services, or subscription fees:
+- **PWA Manifest (`static/manifest.json`)**: Configured with `standalone` display mode, dark `#09090b` theme, and fast app shortcuts.
+- **Root-Scoped Service Worker (`static/sw.js`)**: Served with `Service-Worker-Allowed: /` and `Cache-Control: no-cache`. Pre-caches app shell (`botkeep-shell-v2`) for offline access.
+- **W3C Web Push & Notification API (`static/js/webpush.js`)**: Handles push subscriptions, background OS notification dispatches with custom actions (*"Inspect Node"*, *"Dismiss"*), and SSE `/events` incident alerting.
+- **Self-Cleaning Storage (`internal/models/webpush.go`)**: Automatically prunes expired endpoints on HTTP 410 Gone / 404 Not Found responses.
 
 ### Zero-Glue Multi-Channel Push Notification Engine (`/notifications`)
-BotKeep includes built-in push notification dispatchers directly in the single binary, bypassing complex Alertmanager setups:
+Built-in push notification dispatchers directly in the single binary, bypassing complex Alertmanager setups:
 - **Native Protocol Presets**: Supports Discord (rich embed cards), Telegram (Bot API with HTML formatting), Slack (attachment blocks), ntfy.sh (free instant mobile phone push without account), and custom Webhooks.
-- **Concurrent Non-Blocking Delivery**: The `Dispatcher` dispatches alerts in isolated goroutines with 5-second context timeouts, ensuring slow webhook endpoints never block health probers or UI rendering.
+- **Concurrent Non-Blocking Delivery**: Dispatches alerts in isolated goroutines with 5-second context timeouts, ensuring slow webhook endpoints never block health probers or UI rendering.
 - **Environment Auto-Bootstrapping**: Reads standard environment variables (`BOTKEEP_DISCORD_WEBHOOK`, `BOTKEEP_TELEGRAM_BOT_TOKEN`, `BOTKEEP_NTFY_TOPIC`, etc.) and automatically provisions them into SQLite on startup.
-- **Interactive Verification**: Operators can test any channel or broadcast test alerts with 1 click directly from the HTMX dashboard.
+
+### Autonomous Self-Healing Runbooks (`internal/monitor/healer.go`)
+Transforms BotKeep from a passive monitor into an active healing engine:
+- When a node fails consecutive health checks, automatically executes an HTTP remediation webhook (GitHub Actions workflow, Docker restart, Kubernetes rollout).
+- **Anti-Flap Cooldown Shield**: 5-minute cooldown timer prevents repeat execution loops while containers restart.
+- Records all remediation attempts, response status codes, and execution output logs in SQLite table `remediations`.
+
+### Zero-Config Satellite Mesh & Multi-Region Consensus (`internal/monitor/satellite.go`)
+Eliminates single-location false alarms caused by localized ISP routing anomalies:
+- Satellites run the exact same BotKeep binary in agent mode (`botkeep agent --hub ...`).
+- **Consensus Shield**: An incident is only confirmed when $\ge 2$ regions agree the target is unreachable.
+- Edge latency reporting provides global round-trip latency visibility across regions (Tokyo, Frankfurt, Virginia).
 
 ---
 

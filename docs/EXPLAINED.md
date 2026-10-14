@@ -58,6 +58,9 @@ BotKeep takes the opposite path:
 | **templ** | Type-safe HTML templates written in the Go language. | Fast, reliable, and prevents broken HTML tags at compile time. |
 | **SQLite WAL** | A built-in database stored in a single local file (`fleet.db`). | Zero database setup required. No MySQL or Postgres to configure. |
 | **Single Binary** | The HTML, CSS, JavaScript, database engine, and Go server are compiled into one single file. | You can copy this one file to any machine and run it immediately. |
+| **Synthetic Scenario** | Simulates a multi-step user journey (e.g. log in, save session cookie, fetch balance) and checks response text. | Catches broken user workflows that a simple "is the server alive" check would miss. |
+| **SRE Post-Mortem** | An automatically compiled incident report calculating MTTR, 5-Whys root cause analysis, and event timelines. | Saves hours of manual incident write-ups with 1-click Markdown export for your team. |
+| **Web Push & PWA** | Native browser push notifications and standalone app mode with offline shell caching. | Delivers instant alerts directly to your desktop or phone without needing Discord, Slack, or third-party bots. |
 
 ---
 

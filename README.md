@@ -29,6 +29,9 @@
 
 Think of BotKeep as a **24/7 personal doctor for your websites, databases, and microservices**:
 - **Multi-Protocol Health Checks**: Pings HTTP/HTTPS, dials TCP sockets, executes native `grpc.health.v1` probes, and audits DNS resolution.
+- **Multi-Step Synthetic Scenarios**: Simulates full user journeys (login → session cookie → authenticated request → keyword assertion) with per-step timing and response validation.
+- **Automated Incident Post-Mortems**: Automatically computes MTTR, gathers chronological event timelines, generates 5-Whys Root Cause Analysis, and exports clean Markdown reports.
+- **Direct Browser Web Push & PWA**: Instant OS desktop and mobile push notifications with zero third-party relay bots, plus offline caching and standalone app mode.
 - **SSL/TLS & Domain Intelligence**: Intercepts TLS handshakes to extract Certificate Authority, Common Name, SANs, and countdown to expiration.
 - **Automated Self-Healing Runbooks**: Dispatches automated remediation webhooks (GitHub Actions, Docker restarts, Kubernetes rollouts) to fix outages before escalating to humans.
 - **Declarative GitOps Mode (`fleet.yaml`)**: Manage your entire monitoring infrastructure as code (`botkeep export-fleet` / `botkeep -fleet fleet.yaml`).
@@ -121,10 +124,18 @@ flowchart TD
 - **📡 Multi-Protocol Health Probing**:
   - **HTTP & HTTPS**: Real HTTP requests, status code validation, and automatic TLS peer certificate extraction.
   - **TCP Socket**: Direct port connectivity prober for databases (PostgreSQL, MySQL, Redis, SSH, Kafka).
+  - **gRPC Native**: Direct `grpc.health.v1.Health/Check` wire checks for microservices.
+  - **DNS Latency & Records**: Audits recursive DNS lookup latency across A, AAAA, CNAME, MX, and TXT records.
   - **Simulated Node**: Organic jitter simulation for sandbox testing.
+- **🔄 Multi-Step Synthetic Scenarios & Session Assertion Engine**: Execute complex, multi-step user journeys (e.g. `POST /api/login` → store session cookie → `GET /account/balance` → keyword assertion) with per-step timing breakdown and dry-run test flight runner.
+- **📑 Automated Incident Post-Mortem & Timeline Exporter (`/status/incidents/{id}/postmortem`)**: Automatically compiles enterprise SRE post-mortems with Mean Time to Resolution (MTTR), 5-Whys Root Cause Analysis, chronological audit log event tables, preventative action checklists, and 1-click Markdown (`.md`) download.
+- **🔔 Native Browser Web Push & PWA Direct Notification System**: Receive instant OS desktop & mobile notifications with zero third-party relay bots, Discord bots, or subscription costs. Includes standalone PWA installation, offline shell caching (`botkeep-shell-v2`), and real-time SSE incident bridge.
 - **🔒 TLS / SSL Certificate Expiry Auditing**: Intercepts `resp.TLS.PeerCertificates` and tracks days remaining until expiration (`ssl_expiry_days`) directly in the UI and Prometheus metrics.
 - **📢 Zero-Cost Public Status Page (`/status`)**: Customer-facing live status page with real-time operational banners, 90-day incident/maintenance timelines, public component isolation, and CORS-enabled `/api/status` JSON feed. Eliminates $50–$200/mo third-party SaaS hosting costs.
 - **🔔 1-Click Multi-Channel Push Notifications (`/notifications`)**: Zero-glue delivery presets for **Discord** (rich embeds), **Telegram** (Bot API HTML formatting), **Slack** (attachment blocks), **ntfy.sh** (free instant mobile phone push without account), and custom **Webhooks**. Includes 1-click test pings and broadcast testing.
+- **🤖 Autonomous Self-Healing Runbooks**: Dispatches automated remediation webhooks (GitHub Actions, Docker restarts, Kubernetes rollouts) with cooldown shields to resolve outages before human escalation.
+- **🌐 Zero-Config Satellite Mesh**: Deploy lightweight edge satellites (`botkeep agent`) with multi-region consensus shields to eliminate ISP routing false alarms.
+- **📁 Declarative GitOps Mode (`fleet.yaml`)**: Manage your entire monitoring topology as code with active hot-reload file watching.
 - **📊 Native Prometheus / OpenMetrics Exposition**: Native `/metrics/prometheus` endpoint exposing target status, latency, SLA, SSL days, and Go runtime memory/goroutines.
 - **💾 Fleet Configuration JSON Backup**: 1-click `/api/fleet/export` endpoint to download complete fleet definitions as an indented JSON backup file.
 - **🚨 Incident Webhook Alerting**: Configurable `BOTKEEP_WEBHOOK_URL` to dispatch async JSON notifications on outages (`INCIDENT_DOWN`) and recoveries (`INCIDENT_RESOLVED`).
@@ -206,16 +217,22 @@ When `-auth-user`/`-auth-pass` or `-api-key` is configured, BotKeep automaticall
 - **Public Endpoints (Zero Auth Required)**:
   - `/status` — Public Status Page & real-time SLA uptime dashboard
   - `/status/components` — Partial HTMX component telemetry feed
+  - `/status/incidents/{id}/postmortem` — SRE Root Cause Analysis & Incident Timeline viewer
+  - `/status/incidents/{id}/postmortem/download` — Direct Incident Post-Mortem Markdown (`.md`) download
   - `/api/status` — Machine-readable incident & service health JSON feed
+  - `/manifest.json` — PWA Web App Manifest (standalone mobile & desktop install)
+  - `/sw.js` — Service Worker script with root `/` scope and offline shell caching
   - `/healthz` — Container orchestrator liveness probe (`200 OK`)
   - `/metrics/prometheus` — OpenMetrics / Prometheus scrape endpoint
-  - `/static/*` — Embedded CSS & script assets
+  - `/static/*` — Embedded CSS, HTMX, PWA icons, and client scripts
 - **Protected Endpoints (Basic Auth or API Key Required)**:
   - `/` & `/servers/*` — Dashboard, node actions, synthetic probing rules, runbooks
+  - `/servers/{id}/scenario` & `/servers/{id}/scenario/test` — Multi-step synthetic transaction scenarios & test flight runner
   - `/admin/*` — Incident creation, notification channel management
   - `/notifications/*` — Alert destination configuration & dispatch test firing
-  - `/api/fleet/*` — Fleet export & GitOps schema synchronization
-  - `/api/satellites` & `/api/satellite/*` — Multi-region consensus mesh telemetry
+  - `/api/push/*` — Browser Web Push subscription registry, status, and broadcast test
+  - `/api/fleet/*` — Fleet JSON backup export & GitOps `fleet.yaml` synchronization
+  - `/api/satellites` & `/api/satellite/*` — Multi-region consensus mesh telemetry & heartbeat reporting
 
 ---
 

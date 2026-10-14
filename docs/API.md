@@ -103,6 +103,18 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
   - `message` *(string, required)*: Markdown-formatted incident update message.
 - **Response**: `303 See Other` (Redirects to `/status`)
 
+#### `GET /status/incidents/{id}/postmortem`
+- **Description**: Generates and renders a comprehensive, Linear/Vercel-styled **SRE Incident Post-Mortem** report. Calculates real Mean Time to Resolution (MTTR), formulates a 5-Whys Root Cause Analysis, compiles a chronological minute-by-minute timeline from audit logs, and lists preventative action items. Includes one-click copy to clipboard.
+- **Path Parameters**:
+  - `id` *(string, required)*: Incident identifier (e.g. `inc-2026-001`).
+- **Response**: `200 OK` (`text/html`)
+
+#### `GET /status/incidents/{id}/postmortem/download`
+- **Description**: Generates and streams the SRE Incident Post-Mortem report directly as a downloadable standard Markdown file (`postmortem-{id}.md`) ready for ingestion into GitHub issues, Notion, or internal wikis.
+- **Path Parameters**:
+  - `id` *(string, required)*: Incident identifier.
+- **Response**: `200 OK` (`text/markdown; charset=utf-8`) with `Content-Disposition: attachment; filename="postmortem-{id}.md"`
+
 ---
 
 ### 4. Multi-Channel Alerting & Push Notifications
@@ -145,6 +157,52 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
 #### `GET /api/notifications`
 - **Description**: Programmatic JSON endpoint returning configured alert channels with masked credentials.
 - **CORS**: `Access-Control-Allow-Origin: *`
+- **Response**: `200 OK` (`application/json`)
+
+#### `GET /manifest.json`
+- **Description**: Web App Manifest specifying standalone PWA configuration, high-resolution icons, dark theme colors, and quick application launch shortcuts (*Fleet Overview*, *Public Status*, *Alert Channels*).
+- **Response**: `200 OK` (`application/manifest+json`)
+
+#### `GET /sw.js`
+- **Description**: Root-scoped Service Worker script handling offline shell caching (`botkeep-shell-v2`), push event dispatching with system vibration patterns, notification click navigation, and client message routing.
+- **Headers**: `Service-Worker-Allowed: /`, `Cache-Control: no-cache, no-store, must-revalidate`
+- **Response**: `200 OK` (`application/javascript; charset=utf-8`)
+
+#### `POST /api/push/subscribe`
+- **Description**: Registers or updates an active browser Web Push subscription for direct desktop and mobile notifications.
+- **Request Body** (`application/json`):
+  ```json
+  {
+    "endpoint": "https://fcm.googleapis.com/fcm/send/...",
+    "p256dh": "BNcR...",
+    "auth": "tB...",
+    "user_agent": "Mozilla/5.0..."
+  }
+  ```
+- **Response**: `201 Created` (`application/json`)
+
+#### `POST /api/push/unsubscribe`
+- **Description**: Removes an active browser Web Push subscription matching the provided endpoint.
+- **Request Body** (`application/json`):
+  ```json
+  {
+    "endpoint": "https://fcm.googleapis.com/fcm/send/..."
+  }
+  ```
+- **Response**: `200 OK` (`application/json`)
+
+#### `POST /api/push/test`
+- **Description**: Triggers an instantaneous broadcast test notification to all active browser Web Push subscribers. Automatically prunes expired subscriptions that return HTTP 410 Gone or 404 Not Found.
+- **Response**: `200 OK` (`application/json`) with `{"status": "dispatched", "dispatched": 1}`
+
+#### `GET /api/push/status`
+- **Description**: Returns subscription count and list of active push subscriber devices.
+- **Response**: `200 OK` (`application/json`)
+
+#### `DELETE /api/push/subscriptions/{id}`
+- **Description**: Revokes a specific push subscription by ID.
+- **Path Parameters**:
+  - `id` *(string, required)*: Subscription ID (e.g. `push-2a526b2170fe6d2c`).
 - **Response**: `200 OK` (`application/json`)
 
 ---
@@ -218,7 +276,123 @@ BotKeep follows a **Server-Driven Component Architecture** powered by [Chi](http
 
 ---
 
-### 4. Telemetry & Logs Polling
+### 6. Multi-Step Synthetic Scenarios & Session Assertion Engine
+
+#### `POST /servers/{id}/scenario`
+- **Description**: Configures a multi-step synthetic transaction journey for the target node. Supports chained sequential HTTP requests (e.g. login, query, transaction) maintaining a live cookie jar session across all steps.
+- **Path Parameters**:
+  - `id` *(string, required)*: Target node identifier.
+- **Form Parameters**:
+  - `scenario_steps` *(string, required)*: JSON array of steps:
+    ```json
+    [
+      {
+        "name": "User Authentication",
+        "method": "POST",
+        "url": "https://api.example.com/login",
+        "body": "{\"user\":\"admin\",\"pass\":\"secret\"}",
+        "headers": "Content-Type: application/json",
+        "expected_status": "200",
+        "assertion": "token"
+      },
+      {
+        "name": "Authenticated Query",
+        "method": "GET",
+        "url": "https://api.example.com/dashboard",
+        "expected_status": "200",
+        "assertion": "active_session"
+      }
+    ]
+    ```
+- **Response**: `200 OK` (`text/html`) with updated `@components.Toast` and refreshed scenario card.
+
+#### `POST /servers/{id}/scenario/test`
+- **Description**: Executes an immediate dry-run "Test Flight" of the configured multi-step synthetic scenario in memory, recording per-step response codes, latency breakdown, cookie persistence, and keyword assertion results without affecting production SLA.
+- **Path Parameters**:
+  - `id` *(string, required)*: Target node identifier.
+- **Response**: `200 OK` (`text/html`) with live step-by-step diagnostic execution logs.
+
+---
+
+### 7. Self-Healing Runbooks & Synthetic Probing
+
+#### `POST /servers/{id}/runbook`
+- **Description**: Configures automated remediation settings for the node.
+- **Path Parameters**:
+  - `id` *(string, required)*: Target node identifier.
+- **Form Parameters**:
+  - `runbook_url` *(string)*: Target webhook URL (GitHub Action workflow dispatch, Kubernetes restart hook, Docker daemon restart).
+  - `runbook_enabled` *(checkbox/string)*: `"true"` or `"1"` to enable auto-healing.
+- **Response**: `200 OK` (`text/html`) with toast notification.
+
+#### `POST /servers/{id}/runbook/trigger`
+- **Description**: Manually dispatches an operator smoke test to verify connectivity and execution against the configured auto-healing runbook webhook target.
+- **Path Parameters**:
+  - `id` *(string, required)*: Target node identifier.
+- **Response**: `200 OK` (`text/html`) with toast notification.
+
+#### `POST /servers/{id}/synthetic`
+- **Description**: Configures single-step HTTP synthetic assertion parameters.
+- **Form Parameters**:
+  - `http_method`: `GET`, `POST`, `PUT`, `HEAD`, `DELETE`, `PATCH`.
+  - `expected_status`: Expected HTTP response status code (e.g. `200` or `201`).
+  - `body_assertion`: Substring keyword that MUST be present in the response body.
+  - `custom_headers`: Custom request headers formatted as `Key: Value\nKey2: Value2`.
+- **Response**: `200 OK` (`text/html`) with toast notification.
+
+---
+
+### 8. Declarative GitOps Mode
+
+#### `GET /api/fleet/gitops/export`
+- **Description**: Streams the complete monitored fleet configuration in declarative `fleet.yaml` GitOps format, ready to be committed to version control and mounted via `-fleet fleet.yaml`.
+- **Response**: `200 OK` (`application/x-yaml`) with `Content-Disposition: attachment; filename="fleet.yaml"`.
+
+---
+
+### 9. Zero-Config Satellite Mesh & Multi-Region Consensus
+
+#### `GET /api/satellites`
+- **Description**: Programmatic JSON feed listing all registered edge satellites, global regions, hub round-trip latency, and consensus heartbeat timestamps.
+- **Response**: `200 OK` (`application/json`).
+
+#### `POST /api/satellite/heartbeat`
+- **Description**: Edge satellite heartbeat check-in endpoint.
+- **Request Body** (`application/json`):
+  ```json
+  {
+    "id": "sat-tokyo-01",
+    "name": "Tokyo Edge Agent",
+    "region": "ap-northeast-1",
+    "ip_address": "203.0.113.19",
+    "latency_to_hub_ms": 138.4,
+    "version": "2.0.0"
+  }
+  ```
+- **Response**: `200 OK` (`application/json`).
+
+#### `POST /api/satellite/report`
+- **Description**: Edge satellite regional health check reporting endpoint.
+- **Request Body** (`application/json`):
+  ```json
+  {
+    "satellite_id": "sat-tokyo-01",
+    "server_id": "srv-us-101",
+    "region": "ap-northeast-1",
+    "latency_ms": 142.1,
+    "status_code": 200,
+    "success": true
+  }
+  ```
+- **Response**: `200 OK` (`application/json`).
+
+#### `GET /api/satellite/targets`
+- **Description**: Dispatches active probe target endpoints and protocols for edge satellites to check.
+- **Response**: `200 OK` (`application/json`).
+
+---
+
+### 10. Telemetry & Logs Polling
 
 #### `GET /metrics`
 - **Description**: Calculates and returns aggregate fleet telemetry and host runtime metrics:
