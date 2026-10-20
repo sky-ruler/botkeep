@@ -1,0 +1,49 @@
+version: "2.0"
+targets:
+    - name: auth0-identity-dns
+      driver: dns
+      url: auth.internal.corp
+      protocol: DNS
+      region: us-east-1
+      public: true
+    - name: cloudflare-cdn-edge
+      driver: http
+      url: https://cloudflare.com
+      protocol: HTTPS
+      region: ap-southeast-1
+      public: true
+    - name: postgres-cluster-pri
+      driver: tcp
+      url: db.us-east-1.internal:5432
+      protocol: TCP
+      region: us-east-1
+      public: true
+    - name: github-api-gateway
+      driver: http
+      url: https://api.github.com
+      protocol: HTTPS
+      region: us-east-1
+      runbook_url: https://api.github.com/repos/org/repo/actions/workflows/restart.yml/dispatches
+      runbook_enabled: true
+      public: true
+    - name: payment-grpc-gateway
+      driver: grpc
+      url: grpc.payment.internal:50051
+      protocol: GRPC
+      region: eu-central-1
+      grpc_service: payment.v1.PaymentService
+      public: true
+    - name: redis-cache-fra
+      driver: tcp
+      url: cache.eu-central-1.internal:6379
+      protocol: TCP
+      region: eu-central-1
+      runbook_url: https://hooks.slack.com/triggers/demo/remediation
+      runbook_enabled: true
+      public: true
+    - name: worker-batch-node
+      driver: demo
+      url: service:worker-queue
+      protocol: HTTP
+      region: us-east-1
+      public: true
